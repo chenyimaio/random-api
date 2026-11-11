@@ -189,9 +189,8 @@ for (const full of walk(IMG_DIR)) {
 
   if (!groups.has(key)) groups.set(key, { dir, stem, formats: {}, size: null });
   const g = groups.get(key);
-  // path 是相对「图片仓库根」的路径（图片已拆到独立仓库 random-api-images，
-  // 由 app.js 用 IMAGE_BASE 拼成 GitHub raw 地址）。这里不带 /img 前缀了。
-  g.formats[format] = { path: `/${encodeURI(rel)}`, bytes: buf.length };
+  // path 是站点内路径：图片已放回 EdgeOne 静态层（public/img），URL 由 app.js 拼 BASE_URL。
+  g.formats[format] = { path: `/img/${encodeURI(rel)}`, bytes: buf.length };
   // 用哪个文件读宽高都行；avif/webp 都支持，取第一个能读到的
   if (!g.size && size) g.size = size;
 }

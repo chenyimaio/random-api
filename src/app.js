@@ -142,32 +142,16 @@ function absUrl(u, origin) {
   }
 }
 
-// 图片本体已经拆到独立仓库 random-api-images，通过 GitHub raw 访问。
-// 这里统一由「图片根地址」拼出完整 URL。默认 GitHub raw，可用 IMAGE_BASE 环境变量
-// 覆盖成自己的对象存储 / CDN（比如以后想换成腾讯云 COS）。
-const imageBase = (env) => {
-  const b = String(env?.IMAGE_BASE ?? 'https://raw.githubusercontent.com/chenyimaio/random-api-images/main');
-  return b.trim().replace(/\/+$/, '');
-};
-
-/** 图片 URL：绝对地址原样返回，相对路径拼上图片根地址 */
-function imgUrl(u, env) {
-  if (!u) return u;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) return u;
-  const base = imageBase(env);
-  return base + (u.startsWith('/') ? u : '/' + u);
-}
-
-const withUrl = (img, env) => {
+const withUrl = (img, origin) => {
   if (!img) return null;
   const formats = {};
   for (const [name, f] of Object.entries(img.formats ?? {})) {
-    formats[name] = { url: imgUrl(f.path, env), bytes: f.bytes };
+    formats[name] = { url: absUrl(f.path, origin), bytes: f.bytes };
   }
   return {
     name: img.name,
     // url 默认指向默认格式；下面会被 pickFormat 的结果覆盖
-    url: imgUrl(img.path, env),
+    url: absUrl(img.path, origin),
     width: img.width,
     height: img.height,
     orientation: img.orientation,
@@ -185,12 +169,12 @@ const withUrl = (img, env) => {
  * 把"选好的格式"落到输出上：换掉 url/bytes，附上可用格式清单。
  * fallback 非空表示请求的格式这张图没有（调用方据此决定要不要提示）。
  */
-function applyFormat(out, img, picked, env) {
+function applyFormat(out, img, picked, origin) {
   const fmt = picked.format;
   const chosen = img.formats[fmt];
   return {
     ...out,
-    url: imgUrl(chosen.path, env),
+    url: absUrl(chosen.path, origin),
     bytes: chosen.bytes,
     format: fmt,
     ...(picked.fallback ? { requestedFormat: picked.fallback } : {}),
@@ -386,7 +370,7 @@ async function handle(request, url, env) {
     if (!img) return json({ error: 'no image for that tag', tag: q.get('tag') }, 404);
     const picked = pickFormat(img, { requested: q.get('format'), accept: request?.headers?.get?.('accept') });
     // orientation 保留图片**自身**的朝向（可能是方图），请求的意图放在 requestedOrientation
-    const out = applyFormat(withUrl(img, env), img, picked, env);
+    const out = applyFormat(withUrl(img, origin), img, picked, origin);
     return json({ ...out, requestedOrientation: effectiveOrientation, ...(resolvedClass ? { class: resolvedClass } : {}) }, 200, { vary: 'Accept' });
   }
 
@@ -411,33 +395,13 @@ async function handle(request, url, env) {
       'cache-control': 'no-store, private',
     };
 
-    // 图片已拆到独立仓库，这里函数作为「GitHub raw 的 CDN 代理」：
-    // 用户访问的是本站 /api/random，函数后台去 GitHub raw 拉图、把字节透传回来，
-    // 浏览器地址始终停在 /api/random，且不直接暴露 GitHub raw。
-    // AbortSignal 防止上游卡住拖死函数；失败则 302 到 GitHub raw（用户浏览器兜底直连）。
-    const assetUrl = imgUrl(chosen.path, env);
-    try {
-      const upstream = await fetch(assetUrl, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000),
-      });
-      if (upstream.ok && upstream.body) {
-        return new Response(upstream.body, {
-          status: 200,
-          headers: {
-            ...baseHeaders,
-            'content-type': upstream.headers.get('content-type') || mime,
-          },
-        });
-      }
-    } catch { /* 落到下面的降级 */ }
-
-    // 降级：函数 fetch GitHub 失败时 302 到 GitHub raw，让用户浏览器直连，接口不挂。
+    // 图片在 EdgeOne 静态层（public/img），302 到相对路径，浏览器直接加载（同域、快）。
+    // 地址栏会跳到 /img/...，但这是加载最快的方式 —— 不经过函数 fetch，零代理开销。
     return new Response(null, {
       status: 302,
       headers: {
         ...baseHeaders,
-        location: imgUrl(chosen.path, env),
+        location: absUrl(chosen.path, origin),
         'content-type': mime,
       },
     });
@@ -451,7 +415,7 @@ async function handle(request, url, env) {
     return json({
       quote: item ? hitokotoShape(item, origin) : null,
       // 同上：图片对象保留自身朝向，请求意图单列
-      image: img ? applyFormat(withUrl(img, env), img, picked, env) : null,
+      image: img ? applyFormat(withUrl(img, origin), img, picked, origin) : null,
       requestedOrientation: effectiveOrientation,
       ...(resolvedClass ? { class: resolvedClass } : {}),
     }, 200, { vary: 'Accept' });
@@ -463,7 +427,7 @@ async function handle(request, url, env) {
       counts: imageCounts,
       formatCounts: imageFormatCounts,
       formats: Object.keys(FORMATS),
-      items: allImages().map((i) => withUrl(i, env)),
+      items: allImages().map((i) => withUrl(i, origin)),
     });
   }
 

@@ -90,67 +90,27 @@ check('image.url 是绝对地址', /^https?:\/\//.test(r.data?.url ?? ''), r.dat
 check('image 带宽高', Number(r.data?.width) > 0 && Number(r.data?.height) > 0, r.data);
 check('image.path 已从响应里移除（只留 url）', !('path' in (r.data ?? {})), Object.keys(r.data ?? {}));
 
-// ---- /api/random：直接返回图片字节 ----
-// /api/image/raw 已删除，只保留短链接 /api/random。
-// 正常部署下函数内 fetch 同源静态资源成功 → 200 直吐字节，地址不变；
-// 取不到时才降级 302。两条路径都要测。
+// ---- /api/random：302 到 EdgeOne 静态层图片 ----
+// 图片在 public/img（EdgeOne 静态层），/api/random 302 到 /img/...，浏览器直接加载。
 {
-  // 用可控的 fetch 桩替换全局，模拟"函数内取静态资源成功"
-  const realFetch = globalThis.fetch;
-  const probeFetch = async (u) => {
-    if (String(u).includes('random-api-images')) {
-      return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), {
-        status: 200,
-        headers: { 'content-type': 'image/webp' },
-      });
-    }
-    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
-  };
+  r = await call('/api/random');
+  check('/api/random 返回 302', r.status === 302, r.status);
+  check('302 的 location 指向 /img/', /\/img\//.test(r.headers.get('location') ?? ''), r.headers.get('location'));
+  check('302 带 x-image-format', /^(avif|webp)$/.test(r.headers.get('x-image-format') ?? ''), r.headers.get('x-image-format'));
+  check('302 no-store（每次刷新重新随机）', /no-store/.test(r.headers.get('cache-control') ?? ''), r.headers.get('cache-control'));
+  check('302 带 Vary: Accept', /accept/i.test(r.headers.get('vary') ?? ''), r.headers.get('vary'));
 
-  globalThis.fetch = probeFetch;
-  const direct = await handler({
-    request: new Request('https://example.test/api/random', {
-      headers: { host: 'example.test', accept: 'image/webp' },
-    }),
-  });
-  const directBytes = Buffer.from(await direct.arrayBuffer());
-  globalThis.fetch = realFetch;
-
-  check('/api/random 直接返回 200（不再 302）', direct.status === 200, direct.status);
-  check('/api/random 返回图片字节', directBytes.length > 0, directBytes.length);
-  check('/api/random 带正确 content-type', /^image\//.test(direct.headers.get('content-type') ?? ''), direct.headers.get('content-type'));
-  check('/api/random 无 Location（地址不变）', direct.headers.get('location') === null, direct.headers.get('location'));
-  check('/api/random no-store（每次刷新重新随机）', /no-store/.test(direct.headers.get('cache-control') ?? ''), direct.headers.get('cache-control'));
-  check('/api/random 带 Vary: Accept', /accept/i.test(direct.headers.get('vary') ?? ''), direct.headers.get('vary'));
-
-  // 连续两次不能拿到同一张图：用可控 fetch 桩记录被请求的 URL
-  const seenPaths = [];
-  globalThis.fetch = async (u) => {
-    if (String(u).includes('random-api-images')) {
-      seenPaths.push(new URL(String(u)).pathname);
-      return new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/webp' } });
-    }
-    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
-  };
+  // 连续 30 次，location 应该不同（每次随机不同图）
+  const seen = new Set();
   for (let i = 0; i < 30; i++) {
-    const res = await handler({ request: new Request('https://example.test/api/random', { headers: { host: 'example.test' } }) });
-    await res.arrayBuffer();
+    const x = await call('/api/random');
+    seen.add(x.headers.get('location') ?? '');
   }
-  globalThis.fetch = realFetch;
-  check('连续 30 次刷新能抽到不同图片', new Set(seenPaths).size > 3, new Set(seenPaths).size);
+  check('连续 30 次 302 抽到不同图片', seen.size > 3, seen.size);
 }
 
 r = await call('/api/image/raw');
 check('GET /api/image/raw 已移除 -> 404', r.status === 404, r.status);
-{
-  // 强制 fetch 失败，验证 /api/random 降级 302 到 GitHub raw
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(null, { status: 500 });
-  r = await call('/api/random');
-  globalThis.fetch = realFetch;
-  check('GET /api/random fetch 失败时降级 302', r.status === 302, r.status);
-  check('降级 302 的 location 指向 GitHub raw', String(r.headers.get('location') ?? '').includes('random-api-images'), r.headers.get('location'));
-}
 
 // ---- all ----
 r = await call('/api/all');
@@ -161,8 +121,8 @@ r = await call('/api/images');
 check('GET /api/images 全量返回', r.status === 200 && r.data.items.length === images.length, r.data?.items?.length);
 check('/api/images 带朝向统计', typeof r.data.counts === 'object', r.data?.counts);
 
-// ---- 朝向与四类路径 ----
-// 四类：pc/dm、mobile/dm、pc/fjbz、mobile/fjbz。方图已取消。
+// ---- 朝向与两类路径 ----
+// 两类：pc/dm（电脑二次元横）、mobile/dm（手机二次元竖）。风景 fjbz 已移除。
 for (const o of ['landscape', 'portrait']) {
   r = await call('/api/image?orientation=' + o);
   check('?orientation=' + o + ' 返回该朝向',
@@ -181,31 +141,33 @@ check('数据里确实有竖图', images.some((i) => i.orientation === 'portrait
   check('?orientation=portrait 连续 40 次都不越界', bad.length === 0, bad.slice(0, 5));
 }
 
-// 四类路径过滤
-for (const c of ['pc/dm', 'mobile/dm', 'pc/fjbz', 'mobile/fjbz']) {
+// 两类路径过滤
+for (const c of ['pc/dm', 'mobile/dm']) {
   const x = await call('/api/image?class=' + encodeURIComponent(c));
   const expect = c.startsWith('pc') ? 'landscape' : 'portrait';
   check('?class=' + c + ' 命中该类',
     x.status === 200 && x.data?.class === c && x.data?.orientation === expect,
     { cls: x.data?.class, orient: x.data?.orientation });
 }
-r = await call('/api/image?genre=fjbz');
-check('?genre=fjbz 只给风景类', r.status === 200 && r.data?.genre === 'fjbz', r.data?.genre);
 r = await call('/api/image?device=mobile');
 check('?device=mobile 只给竖图类', r.status === 200 && r.data?.device === 'mobile', r.data?.device);
+r = await call('/api/image?genre=fjbz');
+check('?genre=fjbz（已移除）优雅回退到 dm 而不 404', r.status === 200 && r.data?.genre === 'dm', r.data?.genre);
 
-// 四类都应存在（新索引生成后成立）
+// 两类都应存在
 {
   const counts = images.reduce((m, i) => { const k = i.class ?? '(无)'; m[k] = (m[k] ?? 0) + 1; return m; }, {});
-  for (const c of ['pc/dm', 'mobile/dm', 'pc/fjbz', 'mobile/fjbz']) {
+  for (const c of ['pc/dm', 'mobile/dm']) {
     check(`索引里 ${c} 存在且非空`, (counts[c] ?? 0) > 0, counts[c] ?? 0);
   }
-  check('索引里不再有 square 类', !images.some((i) => i.orientation === 'square'),
+  check('索引里没有 square 类', !images.some((i) => i.orientation === 'square'),
     images.filter((i) => i.orientation === 'square').length);
+  check('索引里没有 fjbz 风景类', !images.some((i) => (i.class ?? '').includes('fjbz')),
+    images.filter((i) => (i.class ?? '').includes('fjbz')).length);
 }
 
-// 简短路径 /pc/dm 等
-for (const c of ['pc/dm', 'mobile/fjbz']) {
+// 简短路径 /pc/dm、/mobile/dm
+for (const c of ['pc/dm', 'mobile/dm']) {
   const x = await call('/' + c);
   check('/' + c + ' 可访问（302 或 200）', [200, 302].includes(x.status), x.status);
 }
@@ -219,10 +181,10 @@ for (const c of ['pc/dm', 'mobile/fjbz']) {
     let d = null; try { d = JSON.parse(Buffer.from(await res.arrayBuffer()).toString('utf8')); } catch { /* 忽略 */ }
     return d;
   };
-  let d = await uaGet('/api/image?genre=fjbz', PC);
-  check('自适应：电脑 + genre=fjbz -> pc/fjbz', d?.class === 'pc/fjbz' && d?.requestedOrientation === 'landscape', { cls: d?.class, o: d?.requestedOrientation });
-  d = await uaGet('/api/image?genre=fjbz', PH);
-  check('自适应：手机 + genre=fjbz -> mobile/fjbz', d?.class === 'mobile/fjbz' && d?.requestedOrientation === 'portrait', { cls: d?.class, o: d?.requestedOrientation });
+  let d = await uaGet('/api/image?genre=dm', PC);
+  check('自适应：电脑 + genre=dm -> pc/dm', d?.class === 'pc/dm' && d?.requestedOrientation === 'landscape', { cls: d?.class, o: d?.requestedOrientation });
+  d = await uaGet('/api/image?genre=dm', PH);
+  check('自适应：手机 + genre=dm -> mobile/dm', d?.class === 'mobile/dm' && d?.requestedOrientation === 'portrait', { cls: d?.class, o: d?.requestedOrientation });
   d = await uaGet('/api/image?class=pc/dm', PH);
   check('自适应：显式 class 压过 UA', d?.class === 'pc/dm' && d?.requestedOrientation === 'landscape', { cls: d?.class, o: d?.requestedOrientation });
   d = await uaGet('/api/image?orientation=portrait', PC);
@@ -257,15 +219,10 @@ check('iPad 判定为横图（平板不当手机）', r.data?.requestedOrientati
 r = await uaCall('/api/image?orientation=portrait', UAS.pc);
 check('显式参数优先于 UA', r.data?.requestedOrientation === 'portrait', r.data?.orientation);
 
-// ---- 302 带朝向标记（fetch 失败走降级）----
-{
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(null, { status: 500 });
-  r = await uaCall('/api/random', UAS.iphone);
-  globalThis.fetch = realFetch;
-  check('302 响应带 x-image-orientation', r.headers.get('x-image-orientation') === 'portrait', r.headers.get('x-image-orientation'));
-  check('302 的 location 落在 GitHub raw', String(r.headers.get('location') ?? '').includes('random-api-images'), r.headers.get('location'));
-}
+// ---- 302 带朝向标记 ----
+r = await uaCall('/api/random', UAS.iphone);
+check('302 响应带 x-image-orientation', r.headers.get('x-image-orientation') === 'portrait', r.headers.get('x-image-orientation'));
+check('302 的 location 落在 /img/', /\/img\//.test(r.headers.get('location') ?? ''), r.headers.get('location'));
 
 
 // ---- 图片都已转成 webp ----
@@ -364,10 +321,6 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
   // 这条规则已删除：AVIF 现在是「接近原图画质」，通常比 WebP 更大，这是刻意取舍
   check('AVIF 一律存在（不再因为体积被丢弃）', images.every((i) => i.formats.avif), images.filter((i) => !i.formats.avif).length);
 
-  // 用 fetch 失败桩，强制 /api/random 走 302 降级，避免真实请求 GitHub、测试更快更稳
-  const _realFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(null, { status: 500 });
-
   const withAccept = async (accept) => {
     const res = await handler({
       request: new Request('https://example.test/api/random', { headers: accept ? { accept } : {} }),
@@ -394,8 +347,6 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
 
   a = await withAccept(null);
   check('无 Accept -> 默认 webp', a.format === 'webp', a);
-
-  globalThis.fetch = _realFetch;
 
   // 显式 ?format=
   r = await call('/api/image?format=avif');
@@ -436,7 +387,7 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
   const missingFmt = [];
   for (const img of images) {
     for (const [fmt, info] of Object.entries(img.formats)) {
-      const p = resolve(root, 'public/img' + decodeURIComponent(info.path));
+      const p = resolve(root, 'public' + decodeURIComponent(info.path));
       if (!existsSync(p)) missingFmt.push(`${img.name}:${fmt}`);
     }
   }
@@ -761,14 +712,11 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
   check('256 位串里不同字符数量合理', new Set(r.data?.string ?? '').size > 50, new Set(r.data?.string ?? '').size);
 }
 
-// ---- 图片对外地址：走 GitHub raw，不外泄内网 host ----
+// ---- 图片对外地址：不能用内网源站 host ----
 {
-  // 图片已拆到独立仓库，URL 统一由 IMAGE_BASE 拼成 GitHub raw 地址，
-  // 不再依赖 request.url 的 host —— 从根上杜绝内网源站地址外泄。
-  const realFetch = globalThis.fetch;
-  // 让函数内 fetch 失败，走 302 降级，便于断言 location
-  globalThis.fetch = async () => new Response(null, { status: 500 });
-
+  // EdgeOne 会把请求转发到源站，request.url 的 host 是内网地址。
+  // 曾经直接拿 url.origin 拼绝对地址，结果 302 指向内网源站外泄。
+  // 现在图片在 EdgeOne 静态层，URL 用 publicBase 拼（BASE_URL / x-forwarded-host / host）。
   const probe = async (url, headers, env = {}) => {
     const res = await handler({ request: new Request(url, { headers }), env });
     let body = null;
@@ -777,25 +725,28 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
   };
 
   const INTERNAL = 'pages-pro-47-394c.pages-scf-gz-pro.qcloudteo.com';
-  const GH = 'https://raw.githubusercontent.com/chenyimaio/random-api-images/main';
 
   let x = await probe(`http://${INTERNAL}/api/random`, { host: INTERNAL });
-  check('内网 host 时图片 URL 仍指向 GitHub raw（不依赖 host）',
-    x.status === 302 && String(x.location ?? '').startsWith(GH), x.location);
+  check('内网 host 时改用相对地址（不外泄内部主机）',
+    x.status === 302 && /^\/img\//.test(x.location ?? ''), x.location);
 
   x = await probe(`http://${INTERNAL}/api/image`, { host: INTERNAL });
-  check('JSON 里的 url 指向 GitHub raw',
-    String(x.body?.url ?? '').startsWith(GH), x.body?.url);
+  check('内网 host 时 JSON 里的 url 也是相对地址',
+    (x.body?.url ?? '').startsWith('/img/'), x.body?.url);
 
-  x = await probe(`http://${INTERNAL}/api/image`, { host: INTERNAL }, { IMAGE_BASE: 'https://cdn.example.com/imgs' });
-  check('IMAGE_BASE 环境变量可覆盖图片根地址',
-    String(x.body?.url ?? '').startsWith('https://cdn.example.com/imgs/'), x.body?.url);
+  x = await probe(`http://${INTERNAL}/api/random`, {
+    host: INTERNAL,
+    'x-forwarded-host': 'random.api.ifyi.top',
+    'x-forwarded-proto': 'https',
+  });
+  check('有 x-forwarded-host 时用公网地址',
+    x.location === undefined ? false : x.location.startsWith('https://random.api.ifyi.top/img/'), x.location);
+
+  x = await probe(`http://${INTERNAL}/api/random`, { host: INTERNAL }, { BASE_URL: 'https://vault.example.org' });
+  check('BASE_URL 优先级最高', (x.location ?? '').startsWith('https://vault.example.org/img/'), x.location);
 
   x = await probe('https://api.example.com/api/random', { host: 'api.example.com' });
-  check('公网 host 下图片 URL 仍是 GitHub raw（不拼 host）',
-    String(x.location ?? '').startsWith(GH), x.location);
-
-  globalThis.fetch = realFetch;
+  check('公网 host 下仍是绝对地址', (x.location ?? '').startsWith('http://api.example.com/img/'), x.location);
 }
 
 // ---- 边界 ----
@@ -807,7 +758,7 @@ r = await call('/api/stats', { method: 'OPTIONS' });
 check('OPTIONS -> 204 且带 CORS', r.status === 204 && r.headers.get('access-control-allow-origin') === '*', r.status);
 
 // ---- 图片文件真的存在 ----
-const missing = images.filter((i) => !existsSync(resolve(root, 'public/img' + decodeURIComponent(i.path))));
+const missing = images.filter((i) => !existsSync(resolve(root, 'public' + decodeURIComponent(i.path))));
 check('索引里的图片文件都存在', missing.length === 0, missing.map((m) => m.path));
 
 const failed = results.filter((x) => !x.ok);
