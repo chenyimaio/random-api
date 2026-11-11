@@ -23,7 +23,6 @@ const IMG_DIR = join(ROOT, 'public', 'img');
 const REPO = process.env.IMAGE_REPO || 'chenyimaio/random-api-images';
 const BRANCH = process.env.IMAGE_BRANCH || 'main';
 const TARBALL = `https://codeload.github.com/${REPO}/tar.gz/refs/heads/${BRANCH}`;
-const TAR_NAME = `images-${BRANCH}.tar.gz`;
 
 function hasImages() {
   if (!existsSync(IMG_DIR)) return false;
@@ -52,33 +51,17 @@ async function main() {
 
   const tmp = '/tmp/random-api-images';
   rmSync(tmp, { recursive: true, force: true });
-  mkdirSync(tmp, { recursive: true });
-  mkdirSync(IMG_DIR, { recursive: true });
-
-  const tarballPath = join(tmp, TAR_NAME);
-  // curl 下载（-sL 静默跟随重定向；--fail 出错时非零退出；--retry 3 网络抖动重试）
-  execSync(`curl -sL --fail --retry 3 -o "${tarballPath}" "${TARBALL}"`, { stdio: 'inherit' });
-
-  // 解压到临时目录
-  execSync(`tar -xzf "${tarballPath}" -C "${tmp}"`, { stdio: 'inherit' });
-
-  // 解压出来是 <repo>-<branch>/ 目录，把里面的内容复制进 public/img
-  const extracted = join(tmp, `${REPO.split('/')[1]}-${BRANCH}`);
-  if (!existsSync(extracted)) {
-    console.error('[fetch-images] 解压目录不存在：' + extracted);
-    process.exit(1);
-  }
-
-  // 清空 public/img 后复制（避免残留）
   rmSync(IMG_DIR, { recursive: true, force: true });
   mkdirSync(IMG_DIR, { recursive: true });
-  execSync(`cp -r "${extracted}/." "${IMG_DIR}/"`, { stdio: 'inherit' });
+
+  // 流式下载 + 解压直接进 public/img：curl | tar 管道，tarball 不落盘，
+  // --strip-components=1 去掉解压出来的顶层目录（<repo>-<branch>/）。
+  // 不经过 /tmp（/tmp 和 /dev/shm 可能是不同文件系统，跨文件系统 mv 会退化成复制、占双份空间）。
+  // 构建机磁盘是 /dev/shm（内存文件系统），任何中间副本都会直接 ENOSPC。
+  execSync(`curl -sL --fail --retry 3 "${TARBALL}" | tar -xz --strip-components=1 -C "${IMG_DIR}"`, { stdio: 'inherit', maxBuffer: 64 * 1024 * 1024 });
 
   const count = execSync(`find "${IMG_DIR}" -type f | wc -l`).toString().trim();
   console.log(`[fetch-images] 完成，public/img 共 ${count} 个文件`);
-
-  // 清理临时文件
-  rmSync(tmp, { recursive: true, force: true });
 }
 
 main().catch((e) => {
