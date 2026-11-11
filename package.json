@@ -1,0 +1,21 @@
+{
+  "name": "random-api",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "description": "随机图片 + 一言 API：数据在仓库里，四类图片（pc/mobile × dm/fjbz）+ 按设备自适应，部署到 EdgeOne Makers 或任何 Node 环境",
+  "scripts": {
+    "img": "python scripts/optimize-images.py",
+    "sync:sentences": "node scripts/sync-sentences.mjs",
+    "fetch:bing": "node scripts/fetch-bing.mjs",
+    "gen": "node scripts/gen-images.mjs",
+    "build": "node scripts/gen-images.mjs && node scripts/build.mjs",
+    "all": "npm run img && npm run build",
+    "dev": "node scripts/dev.mjs",
+    "check": "node --check src/app.js && node --check src/quotes.js && node --check src/images.js && node --check src/makers.js",
+    "test": "node scripts/test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

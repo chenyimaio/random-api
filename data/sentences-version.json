@@ -1,0 +1,23 @@
+{
+  "bundleVersion": "1.0.1372",
+  "updatedAt": 1794132143916,
+  "syncedAt": "2026-11-11T03:46:56.835Z",
+  "source": "https://github.com/hitokoto-osc/sentences-bundle",
+  "license": "AGPL-3.0",
+  "fetched": 11266,
+  "unique": 10605,
+  "perCategory": {
+    "a": 1492,
+    "b": 111,
+    "c": 1203,
+    "d": 2013,
+    "e": 1490,
+    "f": 1558,
+    "g": 1910,
+    "h": 198,
+    "i": 754,
+    "j": 139,
+    "k": 307,
+    "l": 91
+  }
+}

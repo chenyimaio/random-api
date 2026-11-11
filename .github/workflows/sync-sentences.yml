@@ -1,0 +1,104 @@
+# 每天同步上游全量一言，并重建产物。
+#
+# 上游 hitokoto-osc/sentences-bundle 是 AGPL-3.0，本仓库整体同协议，见 NOTICE.md。
+# 同步脚本用 version.json 的 bundle_version 判断有无更新：没变就跳过，
+# 避免每天产生一次空提交。
+name: 同步一言
+
+on:
+  schedule:
+    # 每天 UTC 02:00（北京时间 10:00）跑一次
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '强制重新拉取（忽略版本比对）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-sentences
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 记录同步前的版本
+        id: before
+        run: |
+          if [ -f data/quotes.remote.json ]; then
+            echo "sha=$(sha256sum data/quotes.remote.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 拉取上游全量句子
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            node scripts/sync-sentences.mjs --force
+          else
+            node scripts/sync-sentences.mjs
+          fi
+
+      - name: 判断是否有变化
+        id: changed
+        run: |
+          if [ -f data/quotes.remote.json ]; then
+            now=$(sha256sum data/quotes.remote.json | cut -d' ' -f1)
+          else
+            now=none
+          fi
+          if [ "$now" != "${{ steps.before.outputs.sha }}" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 重建索引与函数产物
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          # 这一步必须真的重打包：新句子数据要被内联进 cloud-functions 产物。
+          # 如果 esbuild 装不上而沿用旧产物，数据就不会更新，同步等于白做。
+          # 所以 npm ci 不允许失败；失败就直接让 workflow 报错，等人处理。
+          npm ci --include=dev
+          # 若 npm 拦了 esbuild 的 postinstall，显式放行后重试
+          if ! node -e "require('esbuild')" 2>/dev/null; then
+            echo "[warn] esbuild 未就绪，尝试 npm rebuild"
+            npm rebuild esbuild || true
+          fi
+          node -e "require('esbuild'); console.log('esbuild 就绪')"
+          npm run gen
+          npm run build
+
+      - name: 跑测试
+        if: steps.changed.outputs.changed == 'true'
+        run: npm test
+
+      - name: 提交变更
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/quotes.remote.json data/sentences-version.json cloud-functions/ public/
+          git diff --cached --quiet && { echo "无实际差异"; exit 0; }
+          VERSION=$(node -e "try{console.log(require('./data/sentences-version.json').bundleVersion||'unknown')}catch(e){console.log('unknown')}")
+          COUNT=$(node -e "console.log(require('./data/quotes.remote.json').length)")
+          git commit -m "chore(sentences): 同步上游全量一言 $VERSION（$COUNT 条）"
+          git push
+
+      - name: 未变化
+        if: steps.changed.outputs.changed != 'true'
+        run: echo "上游无更新，跳过"
