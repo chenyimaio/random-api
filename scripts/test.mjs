@@ -121,8 +121,8 @@ r = await call('/api/images');
 check('GET /api/images 全量返回', r.status === 200 && r.data.items.length === images.length, r.data?.items?.length);
 check('/api/images 带朝向统计', typeof r.data.counts === 'object', r.data?.counts);
 
-// ---- 朝向与两类路径 ----
-// 两类：pc/dm（电脑二次元横）、mobile/dm（手机二次元竖）。风景 fjbz 已移除。
+// ---- 朝向与四类路径 ----
+// 四类：pc/dm（电脑二次元横）、mobile/dm（手机二次元竖）、pc/fjbz（电脑风景横）、mobile/fjbz（手机风景竖）。
 for (const o of ['landscape', 'portrait']) {
   r = await call('/api/image?orientation=' + o);
   check('?orientation=' + o + ' 返回该朝向',
@@ -141,8 +141,8 @@ check('数据里确实有竖图', images.some((i) => i.orientation === 'portrait
   check('?orientation=portrait 连续 40 次都不越界', bad.length === 0, bad.slice(0, 5));
 }
 
-// 两类路径过滤
-for (const c of ['pc/dm', 'mobile/dm']) {
+// 四类路径过滤
+for (const c of ['pc/dm', 'mobile/dm', 'pc/fjbz', 'mobile/fjbz']) {
   const x = await call('/api/image?class=' + encodeURIComponent(c));
   const expect = c.startsWith('pc') ? 'landscape' : 'portrait';
   check('?class=' + c + ' 命中该类',
@@ -152,22 +152,20 @@ for (const c of ['pc/dm', 'mobile/dm']) {
 r = await call('/api/image?device=mobile');
 check('?device=mobile 只给竖图类', r.status === 200 && r.data?.device === 'mobile', r.data?.device);
 r = await call('/api/image?genre=fjbz');
-check('?genre=fjbz（已移除）优雅回退到 dm 而不 404', r.status === 200 && r.data?.genre === 'dm', r.data?.genre);
+check('?genre=fjbz 只给风景类', r.status === 200 && r.data?.genre === 'fjbz', r.data?.genre);
 
-// 两类都应存在
+// 四类都应存在
 {
   const counts = images.reduce((m, i) => { const k = i.class ?? '(无)'; m[k] = (m[k] ?? 0) + 1; return m; }, {});
-  for (const c of ['pc/dm', 'mobile/dm']) {
+  for (const c of ['pc/dm', 'mobile/dm', 'pc/fjbz', 'mobile/fjbz']) {
     check(`索引里 ${c} 存在且非空`, (counts[c] ?? 0) > 0, counts[c] ?? 0);
   }
   check('索引里没有 square 类', !images.some((i) => i.orientation === 'square'),
     images.filter((i) => i.orientation === 'square').length);
-  check('索引里没有 fjbz 风景类', !images.some((i) => (i.class ?? '').includes('fjbz')),
-    images.filter((i) => (i.class ?? '').includes('fjbz')).length);
 }
 
-// 简短路径 /pc/dm、/mobile/dm
-for (const c of ['pc/dm', 'mobile/dm']) {
+// 简短路径 /pc/dm 等
+for (const c of ['pc/dm', 'mobile/dm', 'pc/fjbz', 'mobile/fjbz']) {
   const x = await call('/' + c);
   check('/' + c + ' 可访问（302 或 200）', [200, 302].includes(x.status), x.status);
 }
@@ -185,6 +183,10 @@ for (const c of ['pc/dm', 'mobile/dm']) {
   check('自适应：电脑 + genre=dm -> pc/dm', d?.class === 'pc/dm' && d?.requestedOrientation === 'landscape', { cls: d?.class, o: d?.requestedOrientation });
   d = await uaGet('/api/image?genre=dm', PH);
   check('自适应：手机 + genre=dm -> mobile/dm', d?.class === 'mobile/dm' && d?.requestedOrientation === 'portrait', { cls: d?.class, o: d?.requestedOrientation });
+  d = await uaGet('/api/image?genre=fjbz', PC);
+  check('自适应：电脑 + genre=fjbz -> pc/fjbz', d?.class === 'pc/fjbz' && d?.requestedOrientation === 'landscape', { cls: d?.class, o: d?.requestedOrientation });
+  d = await uaGet('/api/image?genre=fjbz', PH);
+  check('自适应：手机 + genre=fjbz -> mobile/fjbz', d?.class === 'mobile/fjbz' && d?.requestedOrientation === 'portrait', { cls: d?.class, o: d?.requestedOrientation });
   d = await uaGet('/api/image?class=pc/dm', PH);
   check('自适应：显式 class 压过 UA', d?.class === 'pc/dm' && d?.requestedOrientation === 'landscape', { cls: d?.class, o: d?.requestedOrientation });
   d = await uaGet('/api/image?orientation=portrait', PC);
