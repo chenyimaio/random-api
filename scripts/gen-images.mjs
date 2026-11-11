@@ -22,7 +22,7 @@ export const CLASSES = {
   'mobile/fjbz': { device: 'mobile', genre: 'fjbz', orientation: 'portrait',  label: '手机·风景' },
 };
 
-import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, relative, dirname, extname, basename, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -160,8 +160,15 @@ function walk(dir, out = []) {
 mkdirSync(dirname(OUT), { recursive: true });
 
 if (!statSync(IMG_DIR, { throwIfNoEntry: false })) {
+  // 图片已拆到独立仓库 random-api-images，构建环境里没有 public/img。
+  // 这时**保留仓库里已提交的 images.json**（它记录着 4000 张图、path 指向 GitHub raw），
+  // 不要写空索引把数据冲掉 —— 否则 EdgeOne 构建出来的 API 就一张图都没有了。
+  if (existsSync(OUT)) {
+    console.log('[gen-images] public/img 不在构建环境，保留已提交的 images.json');
+    process.exit(0);
+  }
   writeFileSync(OUT, '[]\n', 'utf8');
-  console.log('[gen-images] public/img 不存在，写入空索引');
+  console.log('[gen-images] public/img 不存在，且没有已提交索引，写入空索引');
   process.exit(0);
 }
 

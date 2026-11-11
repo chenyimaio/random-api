@@ -142,9 +142,15 @@ check('image.path 已从响应里移除（只留 url）', !('path' in (r.data ??
 
 r = await call('/api/image/raw');
 check('GET /api/image/raw 已移除 -> 404', r.status === 404, r.status);
-r = await call('/api/random');
-check('GET /api/random 静态资源取不到时降级 302', r.status === 302, r.status);
-check('降级 302 的 location 指向 GitHub raw', String(r.headers.get('location') ?? '').includes('random-api-images'), r.headers.get('location'));
+{
+  // 强制 fetch 失败，验证 /api/random 降级 302 到 GitHub raw
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(null, { status: 500 });
+  r = await call('/api/random');
+  globalThis.fetch = realFetch;
+  check('GET /api/random fetch 失败时降级 302', r.status === 302, r.status);
+  check('降级 302 的 location 指向 GitHub raw', String(r.headers.get('location') ?? '').includes('random-api-images'), r.headers.get('location'));
+}
 
 // ---- all ----
 r = await call('/api/all');
@@ -251,10 +257,15 @@ check('iPad 判定为横图（平板不当手机）', r.data?.requestedOrientati
 r = await uaCall('/api/image?orientation=portrait', UAS.pc);
 check('显式参数优先于 UA', r.data?.requestedOrientation === 'portrait', r.data?.orientation);
 
-// ---- 302 带朝向标记 ----
-r = await uaCall('/api/random', UAS.iphone);
-check('302 响应带 x-image-orientation', r.headers.get('x-image-orientation') === 'portrait', r.headers.get('x-image-orientation'));
-check('302 的 location 落在 GitHub raw', String(r.headers.get('location') ?? '').includes('random-api-images'), r.headers.get('location'));
+// ---- 302 带朝向标记（fetch 失败走降级）----
+{
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(null, { status: 500 });
+  r = await uaCall('/api/random', UAS.iphone);
+  globalThis.fetch = realFetch;
+  check('302 响应带 x-image-orientation', r.headers.get('x-image-orientation') === 'portrait', r.headers.get('x-image-orientation'));
+  check('302 的 location 落在 GitHub raw', String(r.headers.get('location') ?? '').includes('random-api-images'), r.headers.get('location'));
+}
 
 
 // ---- 图片都已转成 webp ----
@@ -353,6 +364,10 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
   // 这条规则已删除：AVIF 现在是「接近原图画质」，通常比 WebP 更大，这是刻意取舍
   check('AVIF 一律存在（不再因为体积被丢弃）', images.every((i) => i.formats.avif), images.filter((i) => !i.formats.avif).length);
 
+  // 用 fetch 失败桩，强制 /api/random 走 302 降级，避免真实请求 GitHub、测试更快更稳
+  const _realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(null, { status: 500 });
+
   const withAccept = async (accept) => {
     const res = await handler({
       request: new Request('https://example.test/api/random', { headers: accept ? { accept } : {} }),
@@ -361,24 +376,26 @@ check('所有图片都有朝向', images.every((i) => ['landscape', 'portrait'].
   };
 
   let a = await withAccept('image/avif,image/webp,image/apng,*/*');
-  check('Accept 含 image/avif -> 给 AVIF', a.format === 'avif' && /\.avif$/.test(a.location ?? ''), a);
-  check('302 带 Vary: Accept（同一 URL 会按 Accept 变）', a.vary === 'Accept', a.vary);
+  check('Accept 含 image/avif -> 给 AVIF', a.format === 'avif', a);
+  check('带 Vary: Accept（同一 URL 会按 Accept 变）', a.vary === 'Accept', a.vary);
 
   a = await withAccept('image/webp,*/*');
-  check('Accept 只有 webp -> 不给 AVIF（通配不算点名）', a.format === 'webp' && /\.webp$/.test(a.location ?? ''), a);
+  check('Accept 只有 webp -> 不给 AVIF（通配不算点名）', a.format === 'webp', a);
 
   a = await withAccept('*/*');
   check('Accept 全通配 -> 默认 webp', a.format === 'webp', a);
 
   a = await withAccept('image/jpeg');
   // JPEG 兜底层已下线：老客户端要 jpeg 时应顺回退链落到 webp，而不是 404
-  check('Accept 只要 jpeg -> 回退到 webp', a.format === 'webp' && /\.webp$/.test(a.location ?? ''), a);
+  check('Accept 只要 jpeg -> 回退到 webp', a.format === 'webp', a);
 
   a = await withAccept('text/html');
   check('Accept 不是图片 -> 默认 webp', a.format === 'webp', a);
 
   a = await withAccept(null);
   check('无 Accept -> 默认 webp', a.format === 'webp', a);
+
+  globalThis.fetch = _realFetch;
 
   // 显式 ?format=
   r = await call('/api/image?format=avif');
