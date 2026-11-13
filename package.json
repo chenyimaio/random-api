@@ -10,7 +10,7 @@
     "fetch:bing": "node scripts/fetch-bing.mjs",
     "gen": "node scripts/gen-images.mjs",
     "fetch:images": "node scripts/fetch-images.mjs",
-    "build": "node scripts/fetch-images.mjs && node scripts/gen-images.mjs && node scripts/build.mjs",
+    "build": "node scripts/build.mjs",
     "all": "npm run img && npm run build",
     "dev": "node scripts/dev.mjs",
     "check": "node --check src/app.js && node --check src/quotes.js && node --check src/images.js && node --check src/makers.js",
