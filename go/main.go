@@ -291,8 +291,34 @@ func handleRandom(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, imgBase+f.Path, http.StatusFound)
 }
 
-func handleHitokoto(w http.ResponseWriter, r *http.Request) {
+// handleImageInfo 始终返回 JSON 详情（/api/random?info=1 的等价别名）。
+func handleImageInfo(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	im := pickImage(q.Get("genre"), q.Get("device"), q.Get("class"))
+	if im == nil {
+		errJSON(w, http.StatusNotFound, "no_image", "no image matched the filters")
+		return
+	}
+	fmtName, f := resolveFormat(im, q.Get("format"))
+	out := map[string]any{
+		"name":          im.Name,
+		"class":         im.Class,
+		"device":        im.Device,
+		"genre":         im.Genre,
+		"tags":          im.Tags,
+		"orientation":   im.Orientation,
+		"width":         im.Width,
+		"height":        im.Height,
+		"bytes":         f.Bytes,
+		"format":        fmtName,
+		"url":           imgBase + f.Path,
+		"defaultFormat": im.DefaultFormat,
+		"formats":       im.Formats,
+	}
+	writeJSON(w, http.StatusOK, out, "no-store")
+}
+
+func handleHitokoto(w http.ResponseWriter, r *http.Request) {	q := r.URL.Query()
 	if q.Get("daily") == "1" {
 		handleDaily(w, r)
 		return
@@ -393,6 +419,7 @@ func main() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	port := env("PORT", "8790")
+	host := env("HOST", "127.0.0.1")
 	imgBase = strings.TrimRight(env("IMG_BASE_URL", "https://img.ifyi.top"), "/")
 	root := env("APP_ROOT", ".")
 
@@ -410,7 +437,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/random", handleRandom)
-	mux.HandleFunc("/api/image", handleRandom)
+	// /api/image 是 /api/random?info=1 的历史别名：始终返回 JSON，绝不 302。
+	// 前端取图信息走这里，若返回 302 会让 fetch().json() 直接失败。
+	mux.HandleFunc("/api/image", handleImageInfo)
 	mux.HandleFunc("/api/hitokoto", handleHitokoto)
 	mux.HandleFunc("/api/daily", handleDaily)
 	mux.HandleFunc("/api/stats", handleStats)
@@ -446,13 +475,13 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Addr:              "127.0.0.1:" + port,
+		Addr:              host + ":" + port,
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("random-api(go) 127.0.0.1:%s  IMG=%s  images=%d quotes=%d",
-		port, imgBase, len(images), len(quotes))
+	log.Printf("random-api(go) %s:%s  IMG=%s  images=%d quotes=%d",
+		host, port, imgBase, len(images), len(quotes))
 	log.Fatal(srv.ListenAndServe())
 }

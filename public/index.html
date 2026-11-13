@@ -666,7 +666,7 @@ async function loadImage() {
     p.set('genre', genre);
     if (device !== 'auto') p.set('device', device);
     if (fmt !== 'auto') p.set('format', fmt);
-    const r = await fetch('/api/image?' + p.toString(), { cache: 'no-store', headers: { accept: ACCEPT_FOR[fmt] } });
+    const r = await fetch('/api/random?info=1&' + p.toString(), { cache: 'no-store', headers: { accept: ACCEPT_FOR[fmt] } });
     const d = await r.json();
     currentImage = d;
     renderCurrentImage();
