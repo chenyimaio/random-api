@@ -366,7 +366,9 @@ async function handle(request, url, env) {
     return json({ total: quoteCount, items: randomQuotes(n).map((x) => hitokotoShape(x, origin)) });
   }
 
-  if (path === '/api/image') {
+  // /api/image 与 /api/random?info=1 是同一个东西：返回 JSON 详情，绝不 302。
+  // 前端取图信息走这里，若返回 302 会让 fetch().json() 直接失败（且跨域被 CORS 拦）。
+  if (path === '/api/image' || (path === '/api/random' && q.get('info') === '1')) {
     const img = randomImage(imageFilter);
     if (!img) return json({ error: 'no image for that tag', tag: q.get('tag') }, 404);
     const picked = pickFormat(img, { requested: q.get('format'), accept: request?.headers?.get?.('accept') });

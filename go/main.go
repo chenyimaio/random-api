@@ -318,7 +318,8 @@ func handleImageInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out, "no-store")
 }
 
-func handleHitokoto(w http.ResponseWriter, r *http.Request) {	q := r.URL.Query()
+func handleHitokoto(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
 	if q.Get("daily") == "1" {
 		handleDaily(w, r)
 		return
