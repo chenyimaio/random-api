@@ -264,7 +264,11 @@ async function handle(request, url, env) {
     });
   }
 
-  if (path === '/api/hitokoto' || path === '/api/quote') {
+  // /api/hitokoto?daily=1 不是随机一言，交给下面的「每日一句」分支（与 /api/daily 同义）。
+  // 少了这个判断，前端「今日一句」按钮会拿到随机句子，看起来像每日一句不生效。
+  const dailyAlias = path === '/api/hitokoto' && q.get('daily') === '1';
+
+  if (!dailyAlias && (path === '/api/hitokoto' || path === '/api/quote')) {
     const item = randomQuote({ type: q.get('type') });
     if (!item) return json({ error: 'no quote for that type', type: q.get('type') }, 404);
     return json(path === '/api/hitokoto' ? hitokotoShape(item, origin) : {
@@ -324,7 +328,8 @@ async function handle(request, url, env) {
   }
 
   // 每日一句：同一天所有人拿到同一句，跨天自动换。
-  if (path === '/api/daily') {
+  // /api/daily 与 /api/hitokoto?daily=1 同义：同一天所有人拿到同一句，跨天自动换。
+  if (path === '/api/daily' || dailyAlias) {
     const tz = q.get('tz') || 'UTC';
     const asked = q.get('date');
 
