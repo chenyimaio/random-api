@@ -3,386 +3,563 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title>随机图片 · 一言 API</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
 <style>
-  :root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--dim:#8b949e;--acc:#58a6ff}
+  :root{
+    --bg:#0a0d12; --bg-2:#0e131a;
+    --panel:rgba(255,255,255,.075); --panel-2:rgba(28,34,44,.82);
+    --line:rgba(255,255,255,.11); --line-2:rgba(48,54,61,.5);
+    --fg:#e6edf3; --dim:#8b949e; --dim-2:#6e7681;
+    --acc:#58a6ff; --acc-2:#a371f7; --ok:#3fb950;
+    --grad:linear-gradient(135deg,#58a6ff 0%,#a371f7 100%);
+    --glow:rgba(88,166,255,.16);
+    --code-bg:rgba(0,0,0,.32); --code-fg:#8fe3ff; --code-line:rgba(255,255,255,.09);
+    --btn-grad:linear-gradient(135deg,#44CEF6 0%,#62CFF6 16.7%,#79D1F5 33.3%,#8CD2F5 50%,#9ED3F5 66.7%,#AED4F4 83.3%,#BED5F4 100%);
+    --btn-fg:#04293a; --btn-glow:rgba(68,206,246,.55);
+    --r:16px; --r-sm:10px;
+    --mono:ui-monospace,SFMono-Regular,"Cascadia Code",Consolas,monospace;
+  }
   @media (prefers-color-scheme: light){
-    :root{--bg:#fff;--panel:#f6f8fa;--line:#d0d7de;--fg:#1f2328;--dim:#656d76;--acc:#0969da}
+    :root{
+      --bg:#eef4fa; --bg-2:#e3ecf6;
+      --panel:rgba(255,255,255,.52); --panel-2:rgba(255,255,255,.94);
+      --line:rgba(255,255,255,.75); --line-2:rgba(160,180,200,.42);
+      --fg:#12212e; --dim:#4a6478; --dim-2:#71889a;
+      --acc:#0b6fc4; --acc-2:#8250df;
+      --grad:linear-gradient(135deg,#0b6fc4 0%,#8250df 100%);
+      --glow:rgba(11,111,196,.12);
+      --code-bg:rgba(255,255,255,.86); --code-fg:#0a5f92; --code-line:rgba(11,111,196,.2);
+      --btn-glow:rgba(68,206,246,.5);
+    }
   }
   *{box-sizing:border-box}
-  body{margin:0;padding:32px 16px 72px;background:var(--bg);color:var(--fg);
-    font:15px/1.65 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .wrap{max-width:860px;margin:0 auto}
-  h1{font-size:20px;margin:0 0 6px}
-  .sub{color:var(--dim);font-size:13px;margin-bottom:24px}
-  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
-  h2{font-size:14px;margin:0 0 14px;font-weight:600}
-  .stage{position:relative;border-radius:8px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
-  .stage img{display:block;width:100%;height:auto;min-height:180px;object-fit:cover}
-  .quote{font-size:17px;line-height:1.8;margin:0}
-  .from{color:var(--dim);font-size:13px;margin:10px 0 0}
-  .meta{color:var(--dim);font-size:12px;margin-top:10px;font-family:ui-monospace,Consolas,monospace;word-break:break-all}
-  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  button{cursor:pointer;font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;
-    border:1px solid var(--line);background:var(--bg);color:var(--fg)}
-  button:hover{border-color:var(--acc);color:var(--acc)}
-  .field{margin-top:14px}
-  .field>label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
-  .field input[type=number]{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--line);
-    background:var(--bg);color:var(--fg);font:inherit;font-size:14px}
-  .row2{display:flex;gap:14px}
-  .row2>div{flex:1}
-  .checks{display:flex;flex-wrap:wrap;gap:14px;font-size:13px}
-  .checks label{display:flex;align-items:center;gap:6px;cursor:pointer}
-  label.inline{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--fg)}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;padding:0 20px 80px;background:var(--bg);color:var(--fg);
+    font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+  }
+  .bg-glow{
+    position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+    background:
+      radial-gradient(circle at 10% 4%,  rgba(88,166,255,.34) 0 190px, transparent 192px),
+      radial-gradient(circle at 88% 10%, rgba(163,113,247,.30) 0 230px, transparent 232px),
+      radial-gradient(circle at 72% 46%, rgba(56,189,248,.24) 0 270px, transparent 272px),
+      radial-gradient(circle at 18% 74%, rgba(139,92,246,.22) 0 210px, transparent 212px),
+      radial-gradient(circle at 94% 88%, rgba(68,206,246,.22) 0 170px, transparent 172px);
+    filter:blur(9px);
+  }
+  @media (prefers-color-scheme: light){
+    .bg-glow{
+      background:
+        radial-gradient(circle at 10% 4%,  rgba(88,166,255,.44) 0 190px, transparent 192px),
+        radial-gradient(circle at 88% 10%, rgba(163,113,247,.36) 0 230px, transparent 232px),
+        radial-gradient(circle at 72% 46%, rgba(56,189,248,.32) 0 270px, transparent 272px),
+        radial-gradient(circle at 18% 74%, rgba(139,92,246,.28) 0 210px, transparent 212px),
+        radial-gradient(circle at 94% 88%, rgba(68,206,246,.30) 0 170px, transparent 172px);
+    }
+  }
+
+  .wrap{max-width:1200px;margin:0 auto;position:relative;z-index:1}
+
+  .hero{padding:52px 0 30px;text-align:center}
+  h1{
+    font-size:36px;font-weight:800;letter-spacing:-.028em;line-height:1.2;margin:0 0 10px;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+  }
+  .sub{color:var(--dim);font-size:14px;margin:0 0 4px}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px}
+  .pill{
+    font-size:12px;padding:5px 13px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--dim);
+    backdrop-filter:blur(12px);display:inline-flex;align-items:center;gap:6px;
+  }
+  .pill b{color:var(--fg);font-variant-numeric:tabular-nums;font-weight:600}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+
+  /* ===== 毛玻璃卡片 ===== */
+  .card{
+    background:var(--panel);
+    backdrop-filter:blur(28px) saturate(185%);
+    -webkit-backdrop-filter:blur(28px) saturate(185%);
+    border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.14) inset,
+      0 0 0 1px rgba(255,255,255,.035) inset,
+      0 22px 52px -26px rgba(0,0,0,.72);
+    transition:background .25s ease,box-shadow .25s ease,border-color .25s ease;
+  }
+  @media (prefers-color-scheme: light){
+    .card{
+      background:rgba(255,255,255,.55);
+      border:1px solid rgba(255,255,255,.78);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.95) inset,
+        0 0 0 1px rgba(255,255,255,.35) inset,
+        0 22px 50px -26px rgba(25,60,95,.34);
+    }
+  }
+
+  /* ===== 布局 ===== */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch}
+  @media (max-width:960px){.grid-2{grid-template-columns:1fr}}
+
+  h2{font-size:14.5px;font-weight:650;margin:0 0 11px;display:flex;align-items:center;gap:8px;letter-spacing:-.01em}
+  h2 .ico{
+    width:16px;height:16px;flex:0 0 auto;
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--acc);opacity:.92;
+  }
+  h2 .ico svg{width:100%;height:100%;display:block}
+  .badge{
+    display:inline-flex;align-items:center;font-size:10.5px;font-weight:500;padding:2px 9px;border-radius:999px;
+    background:var(--glow);color:var(--acc);border:1px solid rgba(88,166,255,.22);
+    margin-left:auto;font-variant-numeric:tabular-nums;
+  }
+
+  /* ===== 图片演示 ===== */
+  section.demo{padding:16px 18px 18px;display:flex;flex-direction:column}
+  section.demo .quote-block{flex:1;display:flex;flex-direction:column;justify-content:center;padding:10px 0}
+  section.demo .quote-block .quote{font-size:17px}
+  .stage{
+    position:relative;border-radius:12px;overflow:hidden;
+    background:linear-gradient(135deg,rgba(68,206,246,.07),rgba(140,210,245,.04));
+    border:1px solid var(--line);min-height:180px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  @media (prefers-color-scheme: light){
+    .stage{background:linear-gradient(135deg,rgba(68,206,246,.13),rgba(190,213,244,.22))}
+  }
+  .stage img{
+    display:block;width:100%;height:auto;min-height:160px;object-fit:cover;
+    opacity:0;                    /* 未加载完成前完全透明：alt 文字和破图标都不会露出来 */
+    transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .4s ease;
+  }
+  .stage img.loaded{opacity:1}
+  .stage:hover img{transform:scale(1.025)}
+
+  /* 加载中：同心圆波浪向外扩散，用青色渐变 */
+  .stage-loading{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;transition:opacity .45s ease;z-index:2;
+  }
+  .stage-loading.hide{opacity:0}
+  .stage-loading .wave{
+    position:absolute;width:62px;height:62px;border-radius:50%;
+    background:linear-gradient(135deg,#44CEF6 0%,#62CFF6 16.7%,#79D1F5 33.3%,#8CD2F5 50%,#9ED3F5 66.7%,#AED4F4 83.3%,#BED5F4 100%);
+    opacity:0;filter:blur(1.5px);
+    animation:waveOut 2.4s cubic-bezier(.2,.55,.35,1) infinite;
+    will-change:transform,opacity;
+  }
+  .stage-loading .wave:nth-child(2){animation-delay:.8s}
+  .stage-loading .wave:nth-child(3){animation-delay:1.6s}
+
+  @keyframes waveOut{
+    0%{transform:scale(.22);opacity:.68}
+    55%{opacity:.26}
+    100%{transform:scale(2.7);opacity:0}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .stage-loading .wave{animation:none;opacity:.4}
+  }
+
+  .quote{font-size:16.5px;line-height:1.7;margin:0;font-weight:450;letter-spacing:-.005em;color:var(--fg);min-height:2.4em}
+  .from{color:var(--dim);font-size:12.5px;margin:9px 0 0}
+  .meta{color:var(--dim-2);font-size:11.5px;margin-top:8px;font-family:var(--mono);word-break:break-all}
+
+  /* ===== 按钮 ===== */
+  .btns{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  button{
+    cursor:pointer;font:inherit;font-size:12.5px;font-weight:500;
+    padding:7px 14px;border-radius:var(--r-sm);
+    border:1px solid var(--line);background:var(--bg-2);color:var(--fg);
+    transition:all .18s cubic-bezier(.4,0,.2,1);
+    -webkit-tap-highlight-color:transparent;
+  }
+  button:hover{border-color:var(--acc);color:var(--acc);background:var(--glow);transform:translateY(-1px);box-shadow:0 4px 14px -6px var(--acc)}
+  button:active{transform:translateY(0) scale(.98)}
+  button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  .btns button:first-child{
+    background:var(--btn-grad);border-color:transparent;color:var(--btn-fg);font-weight:700;
+    text-shadow:0 1px 0 rgba(255,255,255,.35);box-shadow:0 6px 18px -8px var(--btn-glow);
+  }
+  .btns button:first-child:hover{filter:brightness(1.06) saturate(1.1);color:var(--btn-fg);box-shadow:0 10px 26px -8px var(--btn-glow)}
+
+  /* ===== 表单 ===== */
+  .field{margin-top:10px}
+  .field>label{display:block;font-size:11.5px;color:var(--dim);margin-bottom:5px;font-weight:500}
+  input[type=number]{
+    width:100%;padding:8px 11px;border-radius:var(--r-sm);border:1px solid var(--line);
+    background:var(--bg-2);color:var(--fg);font:inherit;font-size:13px;font-family:var(--mono);
+    transition:border-color .18s,box-shadow .18s;
+  }
+  input[type=number]:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--glow)}
+
+  .checks{display:flex;flex-wrap:wrap;gap:7px}
+  .checks label{
+    display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+    font-size:11.5px;padding:4px 10px;border-radius:999px;
+    border:1px solid var(--line);background:var(--bg-2);color:var(--dim);
+    transition:all .18s;user-select:none;
+  }
+  .checks label:hover{border-color:var(--acc);color:var(--fg)}
+  .checks label:has(input:checked){border-color:var(--acc);color:var(--acc);background:var(--glow);box-shadow:0 0 0 1px rgba(88,166,255,.18) inset}
+  /* 复选框：完全隐藏原生方块，选中状态只由外层胶囊的描边表达 */
+  .checks input[type=checkbox]{
+    position:absolute;width:0;height:0;opacity:0;pointer-events:none;
+  }
+  /* 单选框也隐藏原生圆点，只用胶囊描边表示选中 */
+  .checks input[type=radio]{
+    position:absolute;width:0;height:0;opacity:0;pointer-events:none;
+  }
+  /* 组间竖线分隔 */
+  .checks .divider{
+    width:1px;height:15px;background:var(--line-2);align-self:center;margin:0 2px;flex:0 0 auto;
+  }
+  label.inline{display:inline-flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;color:var(--dim)}
+  label.inline input[type=checkbox]{
+    appearance:none;-webkit-appearance:none;margin:0;width:14px;height:14px;
+    border:1.5px solid var(--line);border-radius:3.5px;background:var(--bg-2);
+    transition:all .18s;cursor:pointer;position:relative;flex:0 0 auto;
+  }
+  label.inline input[type=checkbox]:checked{border-color:var(--acc);border-width:2px;background:transparent}
+  label.inline:hover{color:var(--fg)}
+
+  .hint{color:var(--dim-2);font-size:11.5px;margin:8px 0 0;line-height:1.55}
+  .hint.privacy{
+    display:flex;align-items:flex-start;gap:6px;
+    color:var(--ok);font-size:11px;line-height:1.5;
+    margin-top:10px;padding:7px 10px;border-radius:8px;
+    background:rgba(63,185,80,.09);border:1px solid rgba(63,185,80,.2);
+  }
+  .hint.privacy svg{width:12px;height:12px;flex:0 0 auto;margin-top:2px}
+  #str-meta{font-family:var(--mono);letter-spacing:-.01em}
+
   .codebox{position:relative;margin:0}
-  .codebox pre{margin:0;padding:16px 100px 16px 16px;border-radius:8px;border:1px solid var(--line);
-    background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
-    font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-all;min-height:56px}
-  .codebox button{position:absolute;top:10px;right:10px;padding:5px 12px;font-size:12px;
-    background:var(--panel);border:1px solid var(--line);border-radius:6px}
-  .codebox button.ok{border-color:var(--acc);color:var(--acc)}
-  .badge{display:inline-block;font-size:11px;font-weight:400;padding:1px 8px;border-radius:20px;
-    background:rgba(88,166,255,.15);color:var(--acc);vertical-align:2px;margin-left:8px}
-  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);
-    color:var(--dim);font-size:12px;line-height:1.8}
-  .foot a{color:var(--acc);text-decoration:none}
-  .foot a:hover{text-decoration:underline}
-  .hint{color:var(--dim);font-size:12.5px;margin:10px 0 0}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-  tr:last-child td{border-bottom:0}
-  th{color:var(--dim);font-weight:500;white-space:nowrap}
-  code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;word-break:break-all}
-  a{color:var(--acc)}
+  .codebox pre{
+    margin:0;padding:13px 90px 13px 14px;border-radius:var(--r-sm);
+    border:1px solid var(--code-line);border-left:3px solid var(--acc);
+    background:var(--code-bg);color:var(--fg);
+    font-family:var(--mono);font-size:13px;line-height:1.65;
+    white-space:pre-wrap;word-break:break-all;min-height:48px;letter-spacing:.02em;
+  }
+  .codebox button{position:absolute;top:9px;right:9px;padding:4px 11px;font-size:11.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px}
+  .codebox button.ok{border-color:var(--ok);color:var(--ok);background:rgba(63,185,80,.1)}
+
+  /* ===== 接口大卡片 ===== */
+  .api-card{padding:16px 18px 6px}
+  .api-head{display:flex;align-items:baseline;gap:12px;padding:0 0 6px}
+  .api-head h2{margin:0}
+  .api-head span{color:var(--dim-2);font-size:12px}
+
+  .api-list{display:flex;flex-direction:column}
+  .api-item{padding:17px 0;border-bottom:1px solid var(--line-2)}
+  .api-item:last-child{border-bottom:0;padding-bottom:14px}
+
+  .api-top{display:flex;align-items:center;gap:9px;margin-bottom:5px;flex-wrap:wrap}
+  .api-method{
+    font-size:9.5px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:5px;
+    background:rgba(68,206,246,.16);color:#7fd8f5;border:1px solid rgba(68,206,246,.32);
+  }
+  @media (prefers-color-scheme: light){.api-method{background:rgba(11,111,196,.12);color:#0a5f92;border-color:rgba(11,111,196,.28)}}
+  .api-path{font-family:var(--mono);font-size:13.5px;font-weight:600;color:var(--fg);letter-spacing:-.01em}
+  .api-desc{color:var(--dim);font-size:12.5px;margin:0 0 9px;line-height:1.55}
+  .api-params{color:var(--dim-2);font-size:11.5px;font-family:var(--mono);margin:0 0 9px;word-break:break-all}
+  .api-params .amp{color:var(--acc);font-weight:700;margin:0 3px}
+  .api-params b{color:var(--acc);font-weight:700}
+
+  /* 可点击示例（点击即复制完整 URL） */
+  .api-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .api-example{
+    font-size:11px;padding:3px 10px;border-radius:999px;cursor:pointer;
+    background:var(--glow);color:var(--acc);border:1px solid rgba(88,166,255,.22);
+    font-family:inherit;transition:all .16s;position:relative;
+  }
+  .api-example:hover{background:var(--acc);color:#fff;border-color:var(--acc);transform:translateY(-1px)}
+  .api-example.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+
+  /* 接口内联参数（长度等） */
+  .api-inline{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:10px}
+  .api-inline label{font-size:11.5px;color:var(--dim);font-weight:500}
+  .api-inline input[type=number]{
+    width:66px;padding:5px 8px;font-size:12px;border-radius:7px;
+    border:1px solid var(--line);background:var(--bg-2);color:var(--fg);
+    font-family:var(--mono);transition:border-color .18s,box-shadow .18s;
+  }
+  .api-inline input[type=number]:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--glow)}
+  .api-checks{margin-top:10px}
+
+  .api-url{position:relative}
+  .api-url .url-text{
+    display:block;padding:10px 58px 10px 13px;border-radius:9px;
+    background:var(--code-bg);border:1px solid var(--code-line);
+    font-family:var(--mono);font-size:12.5px;color:var(--code-fg);
+    word-break:break-all;line-height:1.55;letter-spacing:-.01em;
+    transition:border-color .18s,background .18s;
+  }
+  .api-url:hover .url-text{border-color:rgba(68,206,246,.42)}
+  .api-url .copy{
+    position:absolute;right:7px;top:50%;transform:translateY(-50%);
+    padding:4px 10px;font-size:11px;border-radius:6px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--dim);
+    backdrop-filter:blur(8px);
+  }
+  .api-url .copy:hover{color:var(--acc);border-color:var(--acc)}
+  .api-url .copy.ok{color:var(--ok);border-color:var(--ok);background:rgba(63,185,80,.12)}
+
+  .api-extra{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .api-tag{
+    font-size:11px;padding:2px 9px;border-radius:999px;
+    background:var(--glow);color:var(--acc);border:1px solid rgba(88,166,255,.2);
+    font-family:var(--mono);
+  }
+  @media (prefers-color-scheme: light){.api-tag{border-color:rgba(11,111,196,.24)}}
+
+  /* ===== 一言 · 口令 大卡片 ===== */
+  .combo{padding:16px 18px 18px}
+  .blk + .blk{margin-top:18px;padding-top:18px;border-top:1px solid var(--line-2)}
+  .blk h3{font-size:13px;font-weight:650;margin:0 0 10px;color:var(--fg);display:flex;align-items:center;gap:7px}
+  .blk h3 .ico{
+    width:15px;height:15px;flex:0 0 auto;
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--acc);opacity:.92;
+  }
+  .blk h3 .ico svg{width:100%;height:100%;display:block}
+  .pw-grid{display:flex;flex-wrap:wrap;gap:12px}
+  .pw-grid > *{flex:1 1 130px;min-width:0}
+
+  /* ===== Footer ===== */
+  .foot{
+    margin-top:30px;padding-top:20px;border-top:1px solid var(--line-2);
+    color:var(--dim-2);font-size:11.5px;line-height:1.8;text-align:center;
+  }
+  .foot b{color:var(--dim);font-weight:600}
+  a{color:var(--acc);text-decoration:none;transition:opacity .15s}
+  a:hover{opacity:.78;text-decoration:underline;text-underline-offset:3px}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--dim-2)}
+  ::selection{background:rgba(88,166,255,.28);color:var(--fg)}
+
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .hero,.layout,.foot{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+  .layout{animation-delay:.06s}
+  @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+
+  @media (max-width:640px){
+    body{padding:0 12px 56px}
+    .hero{padding:36px 0 22px}
+    h1{font-size:25px}
+    section.demo,.combo{padding:16px 15px 18px}
+    .api-card{padding:16px 15px 6px}
+    .quote{font-size:15px}
+    .api-path{font-size:12.5px}
+    .api-url .url-text{font-size:11.5px;padding:9px 52px 9px 11px}
+    .card{border-radius:13px}
+  }
 </style>
 </head>
 <body>
+<div class="bg-glow"></div>
 <div class="wrap">
-  <h1>随机图片 · 一言 API</h1>
 
-  <section>
-    <h2>随机一言</h2>
-    <p class="quote" id="quote">加载中…</p>
-    <p class="from" id="from"></p>
-    <div class="btns">
-      <button id="reload-quote">换一条</button>
-      <button id="load-daily">今日一句</button>
+  <header class="hero">
+    <h1>随机图片 · 一言 API</h1>
+    <div class="pills">
+      <span class="pill"><span class="dot"></span>服务正常</span>
+      <span class="pill">句子 <b id="stat-quotes">—</b></span>
+      <span class="pill">图片 <b id="stat-images">—</b></span>
+      <span class="pill">接口 <b>2</b></span>
     </div>
-  </section>
+  </header>
 
-  <section>
-    <h2>随机图片 <span id="badge" class="badge"></span></h2>
-    <div class="stage"><img id="img" alt="随机图片"></div>
-    <div class="meta" id="img-meta"></div>
+  <!-- ===== 演示：随机图片 | 一言+口令 ===== -->
+  <div class="grid-2">
 
-    <div class="field">
-      <label>题材</label>
-      <div class="checks">
-        <label><input type="radio" name="genre" value="dm" checked> 二次元（dm）</label>
-        <label><input type="radio" name="genre" value="fjbz"> 风景壁纸（fjbz）</label>
+    <section class="card demo">
+        <h2><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.6" cy="8.6" r="1.6"/><path d="M21 15.5l-4.6-4.6L6.2 21.4"/></svg></span>随机图片 <span id="badge" class="badge"></span></h2>
+        <div class="stage">
+          <img id="img" alt="随机图片">
+          <div class="stage-loading" id="stage-loading" aria-hidden="true">
+            <span class="wave"></span>
+            <span class="wave"></span>
+            <span class="wave"></span>
+          </div>
+        </div>
+        <div class="meta" id="img-meta"></div>
+
+        <div class="checks api-checks">
+          <label><input type="radio" name="genre" value="dm" checked> 二次元</label>
+          <label><input type="radio" name="genre" value="fjbz"> 风景壁纸</label>
+          <span class="divider"></span>
+          <label><input type="radio" name="device" value="auto" checked> 自动</label>
+          <label><input type="radio" name="device" value="pc"> 电脑</label>
+          <label><input type="radio" name="device" value="mobile"> 手机</label>
+          <span class="divider"></span>
+          <label><input type="radio" name="fmt" value="auto" checked> 自动</label>
+          <label><input type="radio" name="fmt" value="avif"> AVIF</label>
+          <label><input type="radio" name="fmt" value="webp"> WebP</label>
+        </div>
+
+        <div class="btns"><button id="reload-img">换一张</button></div>
+    </section>
+
+    <section class="card combo">
+      <div class="blk">
+        <h3><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H8.2L4 23v-4.4A8.5 8.5 0 1 1 21 11.5z"/></svg></span>随机一言</h3>
+        <p class="quote" id="quote">加载中…</p>
+        <p class="from" id="from"></p>
+        <div class="btns">
+          <button id="reload-quote">换一条</button>
+          <button id="load-daily">今日一句</button>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label>设备</label>
-      <div class="checks">
-        <label><input type="radio" name="device" value="auto" checked> 自动（按设备）</label>
-        <label><input type="radio" name="device" value="pc"> 电脑（横图）</label>
-        <label><input type="radio" name="device" value="mobile"> 手机（竖图）</label>
+      <div class="blk">
+        <h3><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2.2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/><circle cx="12" cy="15.8" r="1.1"/></svg></span>在线生成口令</h3>
+        <div class="codebox">
+          <pre id="str">—</pre>
+          <button id="copy-str" type="button">复制</button>
+        </div>
+
+        <div class="pw-grid">
+          <div>
+            <div class="field">
+              <label for="len">长度</label>
+              <input id="len" type="number" min="1" max="256" value="14">
+            </div>
+            <p class="hint">1 – 256，建议 14 位以上。</p>
+          </div>
+          <div>
+            <div class="field">
+              <label>包含字符</label>
+              <div class="checks">
+                <label><input type="checkbox" id="c-upper" checked> A-Z</label>
+                <label><input type="checkbox" id="c-lower" checked> a-z</label>
+                <label><input type="checkbox" id="c-digits" checked> 0-9</label>
+                <label><input type="checkbox" id="c-symbols"> !@#$%^&amp;*</label>
+                <label><input type="checkbox" id="c-amb"> 避免易混淆</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pw-grid">
+          <div class="field">
+            <label for="min-digits">数字最少</label>
+            <input id="min-digits" type="number" min="0" max="256" value="1">
+          </div>
+          <div class="field">
+            <label for="min-symbols">符号最少</label>
+            <input id="min-symbols" type="number" min="0" max="256" value="0">
+          </div>
+        </div>
+
+        <div class="btns"><button id="gen-str">生成</button></div>
+        <p class="hint" id="str-meta">占位</p>
+        <p class="hint privacy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2.2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+          口令在你的浏览器本地生成（Web Crypto），服务端不接收、不存储、不记录任何结果。
+        </p>
       </div>
-    </div>
 
-    <div class="field">
-      <label>格式</label>
-      <div class="checks">
-        <label><input type="radio" name="fmt" value="auto" checked> 自动（看浏览器支持）</label>
-        <label><input type="radio" name="fmt" value="avif"> AVIF</label>
-        <label><input type="radio" name="fmt" value="webp"> WebP</label>
-      </div>
-    </div>
+    </section>
 
-    <div class="btns"><button id="reload-img">换一张</button></div>
-  </section>
+  </div>
 
-  <section>
-    <h2>随机数</h2>
-    <div class="quote" id="num">—</div>
-    <div class="btns">
-      <button id="reload-num">换一个（0–100）</button>
-      <button data-num="1-6">掷骰子</button>
-      <button data-num="lottery">抽 5 个不重复</button>
-      <button data-num="float">小数</button>
-    </div>
-  </section>
+  <!-- ===== 接口（全宽） ===== -->
+  <section class="card api-card">
+        <div class="api-head">
+          <h2><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 6.5L3 12l5.5 5.5"/><path d="M15.5 6.5L21 12l-5.5 5.5"/></svg></span>接口</h2>
+          <span>全部允许跨域 · 随机接口不缓存</span>
+        </div>
 
-  <section>
-    <h2>随机字符串 / 口令</h2>
-    <div class="codebox">
-      <pre id="str">—</pre>
-      <button id="copy-str" type="button">复制</button>
-    </div>
+        <div class="api-list">
 
-    <div class="field">
-      <label for="len">长度</label>
-      <input id="len" type="number" min="1" max="256" value="14">
-      <p class="hint">值必须在 1 和 256 之间。建议 14 位以上。</p>
-    </div>
+          <article class="api-item">
+            <div class="api-top">
+              <span class="api-method">GET</span>
+              <span class="api-path">/api/random</span>
+            </div>
+            <p class="api-desc">
+              随机图片主接口。响应为 <b>302 跳转</b>到图片 CDN，浏览器和 <code>&lt;img src&gt;</code> 会自动跟随，可直接当图片地址用。按 UA 自动横竖。
+            </p>
+            <div class="codebox">
+              <pre id="api-preview">/api/random</pre>
+              <button id="copy-api" type="button">复制</button>
+            </div>
+            <div class="checks api-checks">
+              <label><input type="checkbox" id="api-g-dm"> 二次元</label>
+              <label><input type="checkbox" id="api-g-fjbz"> 风景</label>
+              <label><input type="checkbox" id="api-d-pc"> 横屏</label>
+              <label><input type="checkbox" id="api-d-mobile"> 竖屏</label>
+            </div>
+            <p class="hint">加 <code>?info=1</code> 拿 JSON 详情。</p>
+          </article>
 
-    <div class="field">
-      <label>包含</label>
-      <div class="checks">
-        <label><input type="checkbox" id="c-upper" checked> A-Z</label>
-        <label><input type="checkbox" id="c-lower" checked> a-z</label>
-        <label><input type="checkbox" id="c-digits" checked> 0-9</label>
-        <label><input type="checkbox" id="c-symbols"> !@#$%^&amp;*</label>
-      </div>
-    </div>
+          <article class="api-item">
+            <div class="api-top">
+              <span class="api-method">GET</span>
+              <span class="api-path">/api/hitokoto</span>
+            </div>
+            <p class="api-desc">
+              随机一言，字段兼容 hitokoto，现成组件可直接替换地址使用。
+            </p>
+            <div class="codebox">
+              <pre id="hitokoto-preview">/api/hitokoto</pre>
+              <button id="copy-hitokoto" type="button">复制</button>
+            </div>
+            <div class="checks api-checks">
+              <label><input type="checkbox" id="h-daily"> 每日一句</label>
+              <label><input type="checkbox" id="h-t-a"> 动画</label>
+              <label><input type="checkbox" id="h-t-b"> 漫画</label>
+              <label><input type="checkbox" id="h-t-c"> 游戏</label>
+              <label><input type="checkbox" id="h-t-d"> 文学</label>
+              <label><input type="checkbox" id="h-t-e"> 原创</label>
+              <label><input type="checkbox" id="h-t-f"> 网络</label>
+              <label><input type="checkbox" id="h-t-g"> 其他</label>
+              <label><input type="checkbox" id="h-t-h"> 影视</label>
+              <label><input type="checkbox" id="h-t-i"> 诗词</label>
+              <label><input type="checkbox" id="h-t-j"> 网易云</label>
+              <label><input type="checkbox" id="h-t-k"> 哲学</label>
+              <label><input type="checkbox" id="h-t-l"> 抖机灵</label>
+            </div>
+            <p class="hint">勾「每日一句」会覆盖类型。</p>
+          </article>
 
-    <div class="field row2">
-      <div>
-        <label for="min-digits">数字最少个数</label>
-        <input id="min-digits" type="number" min="0" max="256" value="1">
-      </div>
-      <div>
-        <label for="min-symbols">特殊字符最少个数</label>
-        <input id="min-symbols" type="number" min="0" max="256" value="0">
-      </div>
-    </div>
-
-    <div class="field">
-      <label class="inline"><input type="checkbox" id="c-amb"> 避免易混淆的字符（0 O 1 l I |）</label>
-    </div>
-
-    <div class="btns"><button id="gen-str">生成</button></div>
-    <p class="hint" id="str-meta">占位</p>
-  </section>
-  <section>
-    <h2>接口</h2>
-    <table>
-      <tr><th><code>GET /api/number</code></th><td>随机数：<code>?min=&amp;max=&amp;n=&amp;unique=&amp;decimals=</code></td></tr>
-      <tr><th><code>GET /api/string</code></th><td>随机字符串/口令：<code>?length=&amp;chars=&amp;lower=&amp;upper=&amp;digits=&amp;symbols=&amp;underscore=</code>（length 可给列表）</td></tr>
-      <tr><th><code>GET /api/daily</code></th><td>每日一句：同一天所有人拿到同一句，带一天缓存</td></tr>
-      <tr><th><code>GET /api/hitokoto</code></th><td>一言，字段兼容 hitokoto（现成组件直接可用）。支持 <code>?type=d</code></td></tr>
-      <tr><th><code>GET /api/quote</code></th><td>一言简版：<code>{ quote, from, fromWho, type }</code></td></tr>
-      <tr><th><code>GET /api/quotes?n=5</code></th><td>批量随机，不重复</td></tr>
-      <tr><th><code>GET /pc/dm</code> 等四类路径</th><td><code>/pc/dm</code> 电脑二次元 · <code>/mobile/dm</code> 手机二次元 · <code>/pc/fjbz</code> 电脑风景 · <code>/mobile/fjbz</code> 手机风景。<b>直接返回图片字节</b>，地址不变，每次刷新都是新图</td></tr>
-      <tr><th><code>GET /api/image</code></th><td>图片信息：<code>{ url, class, device, genre, width, height, format, formats }</code>。支持 <code>?class=</code>、<code>?device=</code>、<code>?genre=</code>、<code>?format=</code></td></tr>
-      <tr><th><code>GET /api/random</code></th><td><b>直接返回图片字节</b>（不再 302），可写进 <code>&lt;img src&gt;</code>。按 UA 自动横竖，支持 <code>?genre=</code>、<code>?device=</code>、<code>?class=</code>、<code>?format=</code></td></tr>
-      <tr><th><code>GET /api/all</code></th><td>一言 + 图片一起返回</td></tr>
-    </table>
-    <p class="from">全部允许跨域，随机接口不缓存。</p>
-  </section>
-
-  <section>
-    <h2>直接嵌进页面</h2>
-    <table>
-      <tr><th>图片</th><td><code>&lt;img src="/api/random"&gt;</code></td></tr>
-      <tr><th>一言</th><td><code>fetch('/api/hitokoto').then(r =&gt; r.json())</code></td></tr>
-    </table>
-  </section>
+        </div>
+      </section>
 
   <footer class="foot">
     一言句子来自
     <a href="https://github.com/hitokoto-osc/sentences-bundle" target="_blank" rel="noopener">hitokoto-osc/sentences-bundle</a>，
-    该库及本项目按 <b>AGPL-3.0</b> 授权。
-    源码与许可说明：<a href="https://github.com/chenyimaio/random-api" target="_blank" rel="noopener">GitHub 仓库</a> ·
-    <a href="/NOTICE.md" target="_blank" rel="noopener">NOTICE</a>。
-    图片版权归各自作者所有。
+    该库及本项目按 <b>AGPL-3.0</b> 授权。　
+    源码与许可：<a href="https://github.com/chenyimaio/random-api" target="_blank" rel="noopener">GitHub 仓库</a> ·
+    <a href="/NOTICE.md" target="_blank" rel="noopener">NOTICE</a>　图片版权归各自作者所有。
   </footer>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
+const ORIGIN = location.origin;
 
-async function loadQuote() {
-  try {
-    const r = await fetch('/api/hitokoto', { cache: 'no-store' });
-    const d = await r.json();
-    $('quote').textContent = '「' + d.hitokoto + '」';
-    $('from').textContent = d.from ? '—— ' + (d.from_who ? d.from_who + '《' + d.from + '》' : d.from) : '';
-  } catch (e) {
-    $('quote').textContent = '加载失败：' + e.message;
-  }
-}
+/* ---------- 接口地址填充 + 复制 ---------- */
+document.querySelectorAll('.url-text[data-path]').forEach((el) => {
+  el.textContent = ORIGIN + el.dataset.path;
+});
 
-// 探测浏览器能否解码 AVIF：用一张真实的 1×1 AVIF 交给 Image 解码。
-// 不能用 canvas.toDataURL('image/avif')，那测的是"编码"能力，
-// Chrome 会静默回退 PNG，于是支持 AVIF 的浏览器也被误判成不支持。
-const AVIF_DATA = 'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADrbWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAAAAAAAOcGl0bQAAAAAAAQAAAB5pbG9jAAAAAEQAAAEAAQAAAAEAAAETAAAAGgAAAChpaW5mAAAAAAABAAAAGmluZmUCAAAAAAEAAGF2MDFDb2xvcgAAAABqaXBycAAAAEtpcGNvAAAAFGlzcGUAAAAAAAAAAQAAAAEAAAAQcGl4aQAAAAADCAgIAAAADGF2MUOBAAwAAAAAE2NvbHJuY2x4AAEADQAGgAAAABdpcG1hAAAAAAAAAAEAAQQBAoMEAAAAIm1kYXQSAAoFGAAGBCAyDxgACiiihAAAsBNTexjLzg==';
-let AVIF_OK = true; // 乐观默认；结论翻转只重算当前图的显示格式
-
-// 当前展示的这张图（含三种格式 URL）。切格式只换 URL，不重新抽图。
-let currentImage = null;
-
-const ACCEPT_FOR = {
-  avif: 'image/avif',
-  webp: 'image/webp',
-  get auto() {
-    return AVIF_OK ? 'image/avif,image/webp,*/*' : 'image/webp,*/*';
-  },
-};
-
-function currentSettings() {
-  const genre = document.querySelector('input[name="genre"]:checked')?.value ?? 'dm';
-  const device = document.querySelector('input[name="device"]:checked')?.value ?? 'auto';
-  const fmt = document.querySelector('input[name="fmt"]:checked')?.value ?? 'auto';
-  return { genre, device, fmt };
-}
-
-/** 按"格式"单选值决定这次显示 currentImage 的哪种格式 */
-function chosenFormat() {
-  const { fmt } = currentSettings();
-  if (fmt !== 'auto') return fmt;
-  return AVIF_OK ? 'avif' : 'webp';
-}
-
-/** 只更新 img.src 和右上角标记，不重新请求 /api/image */
-function renderCurrentImage() {
-  if (!currentImage) return;
-  const want = chosenFormat();
-  const fmt = currentImage.formats[want] ? want : currentImage.defaultFormat;
-  const f = currentImage.formats[fmt];
-  $('img').src = f.url + '?t=' + Date.now();
-  const label = { landscape: '横图', portrait: '竖图' }[currentImage.orientation] ?? currentImage.orientation;
-  const cls = currentImage.class ? ' · ' + currentImage.class : '';
-  $('badge').textContent = label + cls + ' · ' + fmt.toUpperCase();
-  // 图片下方只展示分辨率
-  $('img-meta').textContent = currentImage.width && currentImage.height
-    ? currentImage.width + ' × ' + currentImage.height
-    : '';
-}
-
-async function loadImage() {
-  try {
-    const { genre, device, fmt } = currentSettings();
-    const p = new URLSearchParams();
-    p.set('genre', genre);
-    if (device !== 'auto') p.set('device', device);
-    if (fmt !== 'auto') p.set('format', fmt);
-    const qs = '?' + p.toString();
-    const r = await fetch('/api/image' + qs, { cache: 'no-store', headers: { accept: ACCEPT_FOR[fmt] } });
-    const d = await r.json();
-    currentImage = d;
-    renderCurrentImage();
-  } catch (e) {
-    $('img-meta').textContent = '加载失败：' + e.message;
-  }
-}
-
-// 探测结果只影响"自动"档：结论翻转时用同一张图重选格式，不重新抽图
-function onAvifProbeDone(ok) {
-  AVIF_OK = ok;
-  const cur = document.querySelector('input[name="fmt"]:checked')?.value ?? 'auto';
-  if (cur === 'auto' && currentImage) renderCurrentImage();
-}
-
-const avifProbe = new Image();
-avifProbe.onload = () => onAvifProbeDone(avifProbe.naturalWidth === 1 && avifProbe.naturalHeight === 1);
-avifProbe.onerror = () => onAvifProbeDone(false);
-avifProbe.src = AVIF_DATA;
-
-async function loadDaily() {
-  try {
-    const r = await fetch('/api/daily', { cache: 'no-store' });
-    const d = await r.json();
-    $('quote').textContent = '「' + d.hitokoto + '」';
-    $('from').textContent = '—— ' + (d.from_who ? d.from_who + '《' + d.from + '》' : d.from || '') + `　（${d.date} 每日一句）`;
-  } catch (e) {
-    $('quote').textContent = '加载失败：' + e.message;
-  }
-}
-
-async function loadNumber(qs) {
-  try {
-    const r = await fetch('/api/number' + (qs || ''), { cache: 'no-store' });
-    const d = await r.json();
-    $('num').textContent = d.numbers ? d.numbers.join('　') : String(d.number);
-  } catch (e) {
-    $('num').textContent = '加载失败：' + e.message;
-  }
-}
-
-async function genPassword() {
-  const len = Math.min(256, Math.max(1, Number($('len').value) || 14));
-  const upper = $('c-upper').checked;
-  const lower = $('c-lower').checked;
-  const digits = $('c-digits').checked;
-  const symbols = $('c-symbols').checked;
-  const minDigits = Math.max(0, Number($('min-digits').value) || 0);
-  const minSymbols = Math.max(0, Number($('min-symbols').value) || 0);
-  const noAmb = $('c-amb').checked;
-
-  if (!upper && !lower && !digits && !symbols) {
-    $('str').textContent = '—';
-    $('str-meta').textContent = '至少要勾选一种字符。';
-    return;
-  }
-
-  const p = new URLSearchParams();
-  p.set('length', String(len));
-  p.set('upper', upper ? '1' : '0');
-  p.set('lower', lower ? '1' : '0');
-  p.set('digits', digits ? '1' : '0');
-  // 勾了符号就把截图里那组符号原样当字符集传给后端
-  p.set('symbols', symbols ? '!@#$%^&*' : '0');
-  p.set('minDigits', digits ? String(minDigits) : '0');
-  p.set('minSymbols', symbols ? String(minSymbols) : '0');
-  if (noAmb) p.set('noAmbiguous', '1');
-
-  try {
-    const r = await fetch('/api/string?' + p.toString(), { cache: 'no-store' });
-    const d = await r.json();
-    if (!r.ok) {
-      $('str').textContent = '—';
-      $('str-meta').textContent = '生成失败：' + (d.message || r.status);
-      return;
-    }
-    const s = d.strings ? d.strings.join('\n') : d.string;
-    $('str').textContent = s;
-    const cnt = (re) => (s.match(re) || []).length;
-    $('str-meta').textContent = [
-      `${[...s].length} 位`,
-      `数字 ${cnt(/[0-9]/g)}`,
-      `大写 ${cnt(/[A-Z]/g)}`,
-      `小写 ${cnt(/[a-z]/g)}`,
-      `符号 ${cnt(/[^A-Za-z0-9]/g)}`,
-      `字符池 ${d.poolSize}`,
-    ].join('  ·  ');
-  } catch (e) {
-    $('str').textContent = '—';
-    $('str-meta').textContent = '请求失败：' + e.message;
-  }
-}
-
-$('reload-quote').addEventListener('click', loadQuote);
-$('load-daily').addEventListener('click', loadDaily);
-$('reload-img').addEventListener('click', () => loadImage());
-// 换题材 / 设备 = 重新抽一张图；换格式 = 只切当前这张图的格式，不换图
-document.querySelectorAll('input[name="genre"],input[name="device"]')
-  .forEach((el) => el.addEventListener('change', loadImage));
-document.querySelectorAll('input[name="fmt"]')
-  .forEach((el) => el.addEventListener('change', renderCurrentImage));
-$('reload-num').addEventListener('click', () => loadNumber());
-document.querySelectorAll('button[data-num]').forEach((b) => b.addEventListener('click', () => {
-  const k = b.dataset.num;
-  if (k === '1-6') loadNumber('?min=1&max=6');
-  else if (k === 'lottery') loadNumber('?n=5&min=1&max=35&unique=1');
-  else loadNumber('?min=0&max=1&decimals=4');
-}));
-
-$('gen-str').addEventListener('click', genPassword);
-
-// 一键复制：优先用 Clipboard API（HTTPS / localhost 可用），
-// HTTP 非安全上下文下 navigator.clipboard 可能不存在，退回 execCommand。
-$('copy-str').addEventListener('click', async () => {
-  const text = $('str').textContent.trim();
-  if (!text || text === '—') return;
-  const btn = $('copy-str');
+async function copyText(text, btn, okLabel) {
+  const prev = btn.textContent;
   const done = () => {
-    btn.textContent = '已复制';
+    btn.textContent = okLabel || '已复制';
     btn.classList.add('ok');
-    setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('ok'); }, 1500);
+    setTimeout(() => { btn.textContent = prev; btn.classList.remove('ok'); }, 1400);
   };
   try {
     if (navigator.clipboard?.writeText) {
@@ -399,16 +576,295 @@ $('copy-str').addEventListener('click', async () => {
     }
     done();
   } catch (e) {
-    btn.textContent = '复制失败';
-    setTimeout(() => { btn.textContent = '复制'; }, 1500);
+    btn.textContent = '失败';
+    setTimeout(() => { btn.textContent = prev; }, 1400);
   }
+}
+
+document.querySelectorAll('.api-url .copy').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const text = btn.parentElement.querySelector('.url-text').textContent.trim();
+    copyText(text, btn);
+  });
+});
+
+// 示例按钮：点击直接复制该组合的完整地址
+document.querySelectorAll('.api-example').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    copyText(ORIGIN + btn.dataset.path, btn, '已复制 ✓');
+  });
+});
+
+/* ---------- 一言 ---------- */
+async function loadQuote() {
+  try {
+    const r = await fetch('/api/hitokoto', { cache: 'no-store' });
+    const d = await r.json();
+    $('quote').textContent = '「' + d.hitokoto + '」';
+    $('from').textContent = d.from ? '—— ' + (d.from_who ? d.from_who + '《' + d.from + '》' : d.from) : '';
+  } catch (e) {
+    $('quote').textContent = '加载失败：' + e.message;
+  }
+}
+
+const AVIF_DATA = 'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADrbWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAAAAAAAOcGl0bQAAAAAAAQAAAB5pbG9jAAAAAEQAAAEAAQAAAAEAAAETAAAAGgAAAChpaW5mAAAAAAABAAAAGmluZmUCAAAAAAEAAGF2MDFDb2xvcgAAAABqaXBycAAAAEtpcGNvAAAAFGlzcGUAAAAAAAAAAQAAAAEAAAAQcGl4aQAAAAADCAgIAAAADGF2MUOBAAwAAAAAE2NvbHJuY2x4AAEADQAGgAAAABdpcG1hAAAAAAAAAAEAAQQBAoMEAAAAIm1kYXQSAAoFGAAGBCAyDxgACiiihAAAsBNTexjLzg==';
+let AVIF_OK = true;
+let currentImage = null;
+
+const ACCEPT_FOR = {
+  avif: 'image/avif',
+  webp: 'image/webp',
+  get auto() { return AVIF_OK ? 'image/avif,image/webp,*/*' : 'image/webp,*/*'; },
+};
+
+function currentSettings() {
+  const genre = document.querySelector('input[name="genre"]:checked')?.value ?? 'dm';
+  const device = document.querySelector('input[name="device"]:checked')?.value ?? 'auto';
+  const fmt = document.querySelector('input[name="fmt"]:checked')?.value ?? 'auto';
+  return { genre, device, fmt };
+}
+
+function chosenFormat() {
+  const { fmt } = currentSettings();
+  if (fmt !== 'auto') return fmt;
+  return AVIF_OK ? 'avif' : 'webp';
+}
+
+function renderCurrentImage() {
+  if (!currentImage) return;
+  const want = chosenFormat();
+  const fmt = currentImage.formats[want] ? want : currentImage.defaultFormat;
+  const f = currentImage.formats[fmt];
+
+  // 加载期间显示波浪扩散，加载完成（或失败）后淡出
+  const img = $('img');
+  const loading = $('stage-loading');
+  img.classList.remove('loaded');
+  if (loading) loading.classList.remove('hide');
+  const done = (ok) => {
+    if (ok) img.classList.add('loaded');
+    if (loading) loading.classList.add('hide');
+  };
+  img.onload = () => done(true);
+  img.onerror = () => done(false);
+
+  img.src = f.url + '?t=' + Date.now();
+  // 命中缓存时 onload 可能早于赋值完成，兜底检查
+  if (img.complete && img.naturalWidth > 0) done(true);
+
+  const label = { landscape: '横图', portrait: '竖图' }[currentImage.orientation] ?? currentImage.orientation;
+  const cls = currentImage.class ? ' · ' + currentImage.class : '';
+  $('badge').textContent = label + cls + ' · ' + fmt.toUpperCase();
+  $('img-meta').textContent = currentImage.width && currentImage.height
+    ? currentImage.width + ' × ' + currentImage.height : '';
+}
+
+async function loadImage() {
+  try {
+    const { genre, device, fmt } = currentSettings();
+    const p = new URLSearchParams();
+    p.set('genre', genre);
+    if (device !== 'auto') p.set('device', device);
+    if (fmt !== 'auto') p.set('format', fmt);
+    const r = await fetch('/api/image?' + p.toString(), { cache: 'no-store', headers: { accept: ACCEPT_FOR[fmt] } });
+    const d = await r.json();
+    currentImage = d;
+    renderCurrentImage();
+  } catch (e) {
+    $('img-meta').textContent = '加载失败：' + e.message;
+  }
+}
+
+function onAvifProbeDone(ok) {
+  AVIF_OK = ok;
+  const cur = document.querySelector('input[name="fmt"]:checked')?.value ?? 'auto';
+  if (cur === 'auto' && currentImage) renderCurrentImage();
+}
+
+const avifProbe = new Image();
+avifProbe.onload = () => onAvifProbeDone(avifProbe.naturalWidth === 1 && avifProbe.naturalHeight === 1);
+avifProbe.onerror = () => onAvifProbeDone(false);
+avifProbe.src = AVIF_DATA;
+
+async function loadDaily() {
+  try {
+    const r = await fetch('/api/hitokoto?daily=1', { cache: 'no-store' });
+    const d = await r.json();
+    $('quote').textContent = '「' + d.hitokoto + '」';
+    $('from').textContent = '—— ' + (d.from_who ? d.from_who + '《' + d.from + '》' : d.from || '') + `　（${d.date} 每日一句）`;
+  } catch (e) {
+    $('quote').textContent = '加载失败：' + e.message;
+  }
+}
+
+/* ---------- 口令 ---------- */
+async function genPassword() {
+  const len = Math.min(256, Math.max(1, Number($('len').value) || 14));
+  const upper = $('c-upper').checked;
+  const lower = $('c-lower').checked;
+  const digits = $('c-digits').checked;
+  const symbols = $('c-symbols').checked;
+  const minDigits = Math.max(0, Number($('min-digits').value) || 0);
+  const minSymbols = Math.max(0, Number($('min-symbols').value) || 0);
+  const noAmb = $('c-amb').checked;
+
+  if (!upper && !lower && !digits && !symbols) {
+    $('str').textContent = '—';
+    $('str-meta').textContent = '至少要勾选一种字符。';
+    return;
+  }
+
+  // ---- 全部在浏览器本地生成：不发请求，服务端永远拿不到口令 ----
+  const CHARS = {
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    digits: '0123456789',
+    symbols: '!@#$%^&*',
+  };
+  const AMBIGUOUS = /[0O1lI|]/g;
+  const clean = (s) => (noAmb ? s.replace(AMBIGUOUS, '') : s);
+
+  const sets = {
+    upper: upper ? clean(CHARS.upper) : '',
+    lower: lower ? clean(CHARS.lower) : '',
+    digits: digits ? clean(CHARS.digits) : '',
+    symbols: symbols ? clean(CHARS.symbols) : '',
+  };
+  const pool = sets.upper + sets.lower + sets.digits + sets.symbols;
+
+  if (!pool) {
+    $('str').textContent = '—';
+    $('str-meta').textContent = '过滤掉易混淆字符后没有可用字符，请多勾几项。';
+    return;
+  }
+
+  // 优先 CSPRNG，老浏览器退回 Math.random
+  const pickIdx = (n) => {
+    if (n <= 0) return 0;
+    if (globalThis.crypto?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      return buf[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  };
+
+  const chars = [];
+  // 先满足"最少个数"要求
+  if (digits && minDigits > 0 && sets.digits) {
+    for (let i = 0; i < Math.min(minDigits, len); i++) {
+      chars.push(sets.digits[pickIdx(sets.digits.length)]);
+    }
+  }
+  if (symbols && minSymbols > 0 && sets.symbols) {
+    for (let i = 0; i < Math.min(minSymbols, len - chars.length); i++) {
+      chars.push(sets.symbols[pickIdx(sets.symbols.length)]);
+    }
+  }
+  // 剩余位从全池抽
+  while (chars.length < len) chars.push(pool[pickIdx(pool.length)]);
+  // Fisher–Yates 洗牌，避免"最少位"总在开头
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = pickIdx(i + 1);
+    const t = chars[i]; chars[i] = chars[j]; chars[j] = t;
+  }
+
+  const s = chars.join('');
+  $('str').textContent = s;
+  const cnt = (re) => (s.match(re) || []).length;
+  $('str-meta').textContent = [
+    `${[...s].length} 位`,
+    `数字 ${cnt(/[0-9]/g)}`,
+    `大写 ${cnt(/[A-Z]/g)}`,
+    `小写 ${cnt(/[a-z]/g)}`,
+    `符号 ${cnt(/[^A-Za-z0-9]/g)}`,
+    `字符池 ${pool.length}`,
+  ].join('  ·  ');
+}
+
+/* ---------- 图片接口构造器 ---------- */
+function buildImageApiUrl() {
+  const p = new URLSearchParams();
+  const genres = ['dm', 'fjbz'].filter((v) => $('api-g-' + v).checked);
+  const devices = ['pc', 'mobile'].filter((v) => $('api-d-' + v).checked);
+  // 只勾一个才加参数：勾两个表示"全都要"，等价于不过滤
+  if (genres.length === 1) p.set('genre', genres[0]);
+  if (devices.length === 1) p.set('device', devices[0]);
+  const qs = p.toString();
+  return ORIGIN + '/api/random' + (qs ? '?' + qs : '');
+}
+
+function updateImageApiUrl() {
+  $('api-preview').textContent = buildImageApiUrl();
+}
+
+/* ---------- 一言接口构造器 ---------- */
+const HITOKOTO_TYPES = ['a','b','c','d','e','f','g','h','i','j','k','l'];
+
+function buildHitokotoUrl() {
+  const p = new URLSearchParams();
+  if ($('h-daily').checked) {
+    // 每日一句优先，忽略类型
+    p.set('daily', '1');
+  } else {
+    const picked = HITOKOTO_TYPES.filter((t) => $('h-t-' + t).checked);
+    // 勾多个类型用逗号连起来（后端会在这些类型间随机抽）
+    if (picked.length) p.set('type', picked.join(','));
+  }
+  const qs = p.toString();
+  return ORIGIN + '/api/hitokoto' + (qs ? '?' + qs : '');
+}
+
+function updateHitokotoUrl() {
+  $('hitokoto-preview').textContent = buildHitokotoUrl();
+}
+
+/* ---------- 绑定 ---------- */
+$('reload-quote').addEventListener('click', loadQuote);
+$('load-daily').addEventListener('click', loadDaily);
+$('reload-img').addEventListener('click', () => loadImage());
+document.querySelectorAll('input[name="genre"],input[name="device"]')
+  .forEach((el) => el.addEventListener('change', loadImage));
+document.querySelectorAll('input[name="fmt"]')
+  .forEach((el) => el.addEventListener('change', renderCurrentImage));
+$('gen-str').addEventListener('click', genPassword);
+$('copy-str').addEventListener('click', () => {
+  const text = $('str').textContent.trim();
+  if (!text || text === '—') return;
+  copyText(text, $('copy-str'));
 });
 document.querySelectorAll('#c-upper,#c-lower,#c-digits,#c-symbols,#c-amb,#len,#min-digits,#min-symbols')
   .forEach((el) => el.addEventListener('change', genPassword));
 
+// 构造器：勾选变化即时重算 URL
+document.querySelectorAll('#api-g-dm,#api-g-fjbz,#api-d-pc,#api-d-mobile')
+  .forEach((el) => el.addEventListener('change', updateImageApiUrl));
+$('copy-api').addEventListener('click', () => {
+  copyText($('api-preview').textContent.trim(), $('copy-api'));
+});
+updateImageApiUrl();
+
+// 一言构造器
+['h-daily'].concat(HITOKOTO_TYPES.map((t) => 'h-t-' + t)).forEach((id) => {
+  const el = $(id);
+  if (el) el.addEventListener('change', updateHitokotoUrl);
+});
+$('copy-hitokoto').addEventListener('click', () => {
+  copyText($('hitokoto-preview').textContent.trim(), $('copy-hitokoto'));
+});
+updateHitokotoUrl();
+
+/* ---------- 统计 ---------- */
+fetch('/api/stats', { cache: 'no-store' })
+  .then((r) => r.json())
+  .then((d) => {
+    if (d.quotes) $('stat-quotes').textContent = d.quotes;
+    if (d.images) $('stat-images').textContent = d.images;
+  })
+  .catch(() => {});
+
 loadQuote();
 loadImage();
-loadNumber();
 genPassword();
 </script>
 </body>

@@ -201,6 +201,7 @@ async function handle(request, url, env) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
   // 用公网根地址，不能用 url.origin —— 那是平台内网源站，外网访问不到
   const origin = publicBase(request, env);
+  const imgOrigin = String(env?.IMG_BASE_URL || '').trim().replace(/\/+$/, '') || origin;
   const q = url.searchParams;
   // 每次请求只算一次，random/all 共用同一个朝向判断
   const orientation = pickOrientation(q.get('orientation'), request);
@@ -370,7 +371,7 @@ async function handle(request, url, env) {
     if (!img) return json({ error: 'no image for that tag', tag: q.get('tag') }, 404);
     const picked = pickFormat(img, { requested: q.get('format'), accept: request?.headers?.get?.('accept') });
     // orientation 保留图片**自身**的朝向（可能是方图），请求的意图放在 requestedOrientation
-    const out = applyFormat(withUrl(img, origin), img, picked, origin);
+    const out = applyFormat(withUrl(img, imgOrigin), img, picked, imgOrigin);
     return json({ ...out, requestedOrientation: effectiveOrientation, ...(resolvedClass ? { class: resolvedClass } : {}) }, 200, { vary: 'Accept' });
   }
 
@@ -401,7 +402,7 @@ async function handle(request, url, env) {
       status: 302,
       headers: {
         ...baseHeaders,
-        location: absUrl(chosen.path, origin),
+        location: absUrl(chosen.path, imgOrigin),
         'content-type': mime,
       },
     });
@@ -415,7 +416,7 @@ async function handle(request, url, env) {
     return json({
       quote: item ? hitokotoShape(item, origin) : null,
       // 同上：图片对象保留自身朝向，请求意图单列
-      image: img ? applyFormat(withUrl(img, origin), img, picked, origin) : null,
+      image: img ? applyFormat(withUrl(img, imgOrigin), img, picked, imgOrigin) : null,
       requestedOrientation: effectiveOrientation,
       ...(resolvedClass ? { class: resolvedClass } : {}),
     }, 200, { vary: 'Accept' });
@@ -427,7 +428,7 @@ async function handle(request, url, env) {
       counts: imageCounts,
       formatCounts: imageFormatCounts,
       formats: Object.keys(FORMATS),
-      items: allImages().map((i) => withUrl(i, origin)),
+      items: allImages().map((i) => withUrl(i, imgOrigin)),
     });
   }
 

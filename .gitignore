@@ -1,15 +1,27 @@
+# 依赖
 node_modules/
+vendor/
+
+# 运行时产物
 *.log
+logs/
+*.bak
+*.bak.*
+
+# 数据库与缓存
+data/*.db
+data/*.db-*
+
+# 编译产物
+go/random-api
+random-api
+*.exe
+
+# 编辑器
+.vscode/
+.idea/
 .DS_Store
 
-# 原始素材（几百 MB）不进仓库，只提交压缩产物
-raw-img/
-
-# 图片已拆到独立仓库 random-api-images，由代码仓库通过 GitHub raw 代理访问
-# 原图与压缩产物都不进代码仓库（否则 EdgeOne 构建要 clone 2GB 会失败）
-public/img/
-
-# 注意：cloud-functions/[[default]].js 故意不忽略。
-# EdgeOne 按「仓库里有没有 cloud-functions/[[default]].js」判断是不是带后端的项目；
-# 如果它只存在于构建产物、不在仓库里，平台可能直接判成纯静态项目，
-# 所有 /api/* 都会落到静态层变成 404。产物只有几 KB，提交进来最省事。
+# 临时
+tmp/
+dist/
